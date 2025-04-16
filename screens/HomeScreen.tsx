@@ -44,31 +44,7 @@ const PhotoGallery = () => {
       </ScrollView>
 
       
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Feather name="home" size={24} color="#3498db" />
-          <Text style={[styles.navText, styles.activeNavText]}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem}>
-          <Feather name="search" size={24} color="#999" />
-          <Text style={styles.navText}>Search</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.addButton}>
-          <Feather name="plus" size={28} color="#fff" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem}>
-          <Feather name="message-circle" size={24} color="#999" />
-          <Text style={styles.navText}>Chat</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem}>
-          <Feather name="user" size={24} color="#999" />
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+  
     </SafeAreaView>
   );
 };
@@ -78,7 +54,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 0,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 0,
   },
   header: {
     padding: 15,
@@ -127,34 +103,6 @@ const styles = StyleSheet.create({
   photoTitle: {
     fontSize: 12,
     fontWeight: '500',
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    height: 60,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  navItem: {
-    alignItems: 'center',
-  },
-  navText: {
-    fontSize: 12,
-    marginTop: 3,
-    color: '#999',
-  },
-  activeNavText: {
-    color: '#3498db',
-  },
-  addButton: {
-    backgroundColor: '#3498db',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
   },
 });
 
