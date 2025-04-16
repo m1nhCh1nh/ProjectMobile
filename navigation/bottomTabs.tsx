@@ -1,21 +1,37 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, GestureResponderEvent, StyleProp, ViewStyle } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
 import UploadScreen from '../screens/UploadScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ChatScreen from '../screens/ChatScreen';
 import { Ionicons } from '@expo/vector-icons';
+import { HapticTab } from '@/components/HapticTab';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import TabBarBackground from '@/components/ui/TabBarBackground';
 
-const Tab = createBottomTabNavigator();
+type TabParamList = {
+  Home: undefined;
+  Search: undefined;
+  Add: undefined;
+  Chat: undefined;
+  Profile: undefined;
+};
 
-// Component cho nút tùy chỉnh ở giữa
-const CustomAddButton = props => {
+const Tab = createBottomTabNavigator<TabParamList>();
+
+interface CustomAddButtonProps {
+  onPress?: ((event: GestureResponderEvent) => void);
+  style?: StyleProp<ViewStyle>;
+}
+
+const CustomAddButton: React.FC<CustomAddButtonProps> = ({ onPress, style }) => {
   return (
     <TouchableOpacity
-      {...props}
-      style={styles.customAddButton}
+      onPress={onPress}
+      style={[styles.customAddButton, style]}
     >
       <View style={styles.addButton}>
         <Ionicons name="add" size={30} color="#fff" />
@@ -24,17 +40,17 @@ const CustomAddButton = props => {
   );
 };
 
-export default function BottomTabs() {
+const BottomTabs: React.FC = () => {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={({ route }): BottomTabNavigationOptions => ({
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: styles.tabBar,
         tabBarActiveTintColor: '#2196F3',
         tabBarInactiveTintColor: 'gray',
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
+          let iconName: keyof typeof Ionicons.glyphMap = 'home';
           
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
@@ -72,7 +88,12 @@ export default function BottomTabs() {
         name="Add" 
         component={UploadScreen}
         options={{
-          tabBarButton: (props) => <CustomAddButton {...props} />,
+          tabBarButton: (props) => (
+            <CustomAddButton 
+              onPress={props.onPress}
+              style={props.style}
+            />
+          ),
           tabBarLabel: () => null
         }}
       />
@@ -94,7 +115,7 @@ export default function BottomTabs() {
       />
     </Tab.Navigator>
   );
-}
+};
 
 const styles = StyleSheet.create({
   tabBar: {
@@ -128,3 +149,5 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 });
+
+export default BottomTabs;
