@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import axios, { AxiosError } from 'axios';
 
 interface SignupForm {
   fullName: string;
@@ -8,16 +9,69 @@ interface SignupForm {
   password: string;
 }
 
-const SignupScreen: React.FC = () => {
+const SignupScreen: React.FC = ({ navigation }: any) => {
   const [formData, setFormData] = useState<SignupForm>({
     fullName: '',
     email: '',
     password: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignup = () => {
-    console.log('Signup attempt:', formData);
-    // Add your signup logic here
+  const validateForm = () => {
+    if (!formData.email || !formData.password || !formData.fullName) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return false;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSignup = async () => {
+    if (!validateForm()) return;
+
+    setIsLoading(true);
+    try {
+      const response = await axios.post('http://192.168.101.237:3000/v1/users/register', {
+        email: formData.email,
+        password: formData.password,
+        name: formData.fullName
+      });
+
+      Alert.alert(
+        'Success',
+        'Registration successful! Please login to continue.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('Login')
+          }
+        ]
+      );
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        if (error.response?.status === 409) {
+          Alert.alert('Error', 'Email already exists');
+        } else if (!error.response) {
+          Alert.alert('Error', 'Network error. Please check your connection.');
+        } else {
+          Alert.alert('Error', error.response?.data?.message || 'Registration failed');
+        }
+      }
+      console.error('Signup error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -67,14 +121,20 @@ const SignupScreen: React.FC = () => {
             />
           </View>
 
-          <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-            <Text style={styles.signupButtonText}>Sign Up</Text>
+          <TouchableOpacity 
+            style={[styles.signupButton, isLoading && styles.disabledButton]} 
+            onPress={handleSignup}
+            disabled={isLoading}
+          >
+            <Text style={styles.signupButtonText}>
+              {isLoading ? 'Signing up...' : 'Sign Up'}
+            </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.loginContainer}>
           <Text style={styles.loginText}>Already have an account? </Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
             <Text style={styles.loginLink}>Login</Text>
           </TouchableOpacity>
         </View>
@@ -155,6 +215,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
+    opacity: 0.7,
   },
   loginContainer: {
     flexDirection: 'row',

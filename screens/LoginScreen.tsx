@@ -1,40 +1,55 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import axios, { AxiosError } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface LoginForm {
   email: string;
   password: string;
 }
 
-// Mock data for authentication
-const MOCK_USER = {
-  email: 'khanhhuychc@gmail.com',
-  password: '123456'
-};
-
 const LoginScreen: React.FC = ({ navigation }: any) => {
   const [formData, setFormData] = useState<LoginForm>({ email: '', password: '' });
 
-  const handleLogin = () => {
-    // Validate login credentials
-    if (formData.email === MOCK_USER.email && formData.password === MOCK_USER.password) {
-      console.log('Login successful');
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post('http://192.168.101.237:3000/v1/users/login', {
+        email: formData.email,
+        password: formData.password,
+      });
+      console.log("Response: ", response);
+      if(response.status == 403) {
+        alert('Login failed. Please try again');
+        return;
+      }
+      const token = response.data.accessToken;
+      console.log("Token: ", token);
+      if(token==undefined)
+        console.log("Token is undefined");
+      await AsyncStorage.setItem('token', token);
+
       Alert.alert(
-        'Success', 
+        'Success',
         'Login successful!',
         [
           {
             text: 'OK',
             onPress: () => {
-              // Navigate to main app after user clicks OK
               navigation.replace('Main');
-            }
-          }
+            },
+          },
         ]
       );
-    } else {
-      Alert.alert('Error', 'Invalid email or password');
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        Alert.alert('Error', 'Invalid email or password');
+      } else if (error instanceof AxiosError && error.request) {
+        Alert.alert('Error', 'No response from server. Please check your connection.');
+      } else {
+        Alert.alert('Error', 'An error occurred. Please try again.');
+      }
+      console.error(error);
     }
   };
 
@@ -42,12 +57,8 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <View style={styles.content}>
-        {/* Logo placeholder */}
         <View style={styles.logoContainer}>
-          <Image 
-            source={require('../assets/images/logo.png')} 
-            style={styles.logo}
-          />
+          <Image source={require('../assets/images/logo.png')} style={styles.logo} />
         </View>
         <Text style={styles.title}>Photo Gallery</Text>
 
@@ -58,7 +69,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
               style={styles.input}
               placeholder="Enter your email"
               value={formData.email}
-              onChangeText={(text) => setFormData(prev => ({...prev, email: text}))}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -70,7 +81,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
               style={styles.input}
               placeholder="Enter your password"
               value={formData.password}
-              onChangeText={(text) => setFormData(prev => ({...prev, password: text}))}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
               secureTextEntry
             />
           </View>
