@@ -8,9 +8,6 @@ import ProfileScreen from '../screens/ProfileScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ChatScreen from '../screens/ChatScreen';
 import { Ionicons } from '@expo/vector-icons';
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
 
 type TabParamList = {
   Home: undefined;
@@ -23,7 +20,7 @@ type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 
 interface CustomAddButtonProps {
-  onPress?: ((event: GestureResponderEvent) => void);
+  onPress?: (event: GestureResponderEvent) => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -49,6 +46,7 @@ const BottomTabs: React.FC = () => {
         tabBarStyle: styles.tabBar,
         tabBarActiveTintColor: '#2196F3',
         tabBarInactiveTintColor: 'gray',
+        tabBarLabelStyle: styles.tabBarLabel,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home';
           
@@ -57,7 +55,7 @@ const BottomTabs: React.FC = () => {
           } else if (route.name === 'Search') {
             iconName = focused ? 'search' : 'search-outline';
           } else if (route.name === 'Add') {
-            return null; // Custom button will handle this
+            return null; 
           } else if (route.name === 'Chat') {
             iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           } else if (route.name === 'Profile') {
@@ -72,7 +70,7 @@ const BottomTabs: React.FC = () => {
         name="Home" 
         component={HomeScreen} 
         options={{
-          tabBarLabel: 'Home'
+          tabBarLabel: 'Trang chủ',
         }}
       />
       
@@ -80,7 +78,7 @@ const BottomTabs: React.FC = () => {
         name="Search" 
         component={SearchScreen}
         options={{
-          tabBarLabel: 'Search'
+          tabBarLabel: 'Tìm kiếm',
         }}
       />
       
@@ -94,7 +92,7 @@ const BottomTabs: React.FC = () => {
               style={props.style}
             />
           ),
-          tabBarLabel: () => null
+          tabBarLabel: () => null,
         }}
       />
       
@@ -102,7 +100,7 @@ const BottomTabs: React.FC = () => {
         name="Chat" 
         component={ChatScreen}
         options={{
-          tabBarLabel: 'Chat'
+          tabBarLabel: 'Chat',
         }}
       />
       
@@ -110,7 +108,7 @@ const BottomTabs: React.FC = () => {
         name="Profile" 
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Profile'
+          tabBarLabel: 'Hồ sơ',
         }}
       />
     </Tab.Navigator>
@@ -126,6 +124,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  tabBarLabel: {
+    fontSize: 12,
+    marginBottom: 3,
   },
   customAddButton: {
     top: -15,
