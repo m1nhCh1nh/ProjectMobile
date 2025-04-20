@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,10 +8,14 @@ import {
   TouchableOpacity, 
   SafeAreaView,
   StatusBar,
-  Platform
+  Platform,
+  Dimensions,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../constants/config';
 
 // Định nghĩa kiểu Photo khớp với API
 interface Photo {
@@ -40,6 +44,41 @@ type PhotoDetailScreenProps = NativeStackScreenProps<RootStackParamList, 'PhotoD
 const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ route, navigation }) => {
   const { photo } = route.params;
 
+  // State for original image dimensions
+  const [imgSize, setImgSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const screenWidth = Dimensions.get('window').width;
+  useEffect(() => {
+    Image.getSize(photo.imageUrl,
+      (width, height) => setImgSize({ width, height }),
+      (error) => console.error('Image.getSize error:', error)
+    );
+  }, [photo.imageUrl]);
+
+  // Like count state
+  const [likes, setLikes] = useState(photo.likes);
+  // Like handler
+  const handleLike = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Error', 'Bạn cần đăng nhập để thực hiện thao tác này');
+        return;
+      }
+      const res = await fetch(`${API_URL}/v1/photos/${photo.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (!res.ok) throw new Error('Thao tác like không thành công');
+      setLikes(prev => prev + 1);
+    } catch (err: any) {
+      console.error('Like error:', err);
+      Alert.alert('Error', err.message || 'Có lỗi xảy ra khi like ảnh');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
@@ -48,8 +87,12 @@ const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ route, navigation
         <View style={styles.imageContainer}>
           <Image
             source={{ uri: photo.imageUrl }}
-            style={styles.image}
-            resizeMode="cover"
+            style={
+              imgSize.width > 0 && imgSize.height > 0
+                ? { width: screenWidth, height: (screenWidth * imgSize.height) / imgSize.width }
+                : { width: screenWidth, height: screenWidth * 0.75 }
+            }
+            resizeMode="contain"
           />
           
           <TouchableOpacity 
@@ -80,10 +123,10 @@ const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ route, navigation
           </View>
           
           <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
+            <TouchableOpacity style={styles.statItem} onPress={handleLike}>
               <Ionicons name="heart-outline" size={22} color="#ff3b30" />
-              <Text style={styles.statText}>{photo.likes}</Text>
-            </View>
+              <Text style={styles.statText}>{likes}</Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionTitle}>Từ khóa</Text>
@@ -111,11 +154,6 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
     width: '100%',
-    height: 300,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
   },
   backButton: {
     position: 'absolute',
