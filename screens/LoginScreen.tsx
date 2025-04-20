@@ -36,7 +36,8 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
           {
             text: 'OK',
             onPress: () => {
-              navigation.replace('Main');
+              // Reset navigation stack so Login is removed completely
+              navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
             },
           },
         ]

@@ -70,7 +70,7 @@ const BottomTabs: React.FC = () => {
         name="Home" 
         component={HomeScreen} 
         options={{
-          tabBarLabel: 'Trang chủ',
+          tabBarLabel: '',
         }}
       />
       
@@ -78,7 +78,7 @@ const BottomTabs: React.FC = () => {
         name="Search" 
         component={SearchScreen}
         options={{
-          tabBarLabel: 'Tìm kiếm',
+          tabBarLabel: '',
         }}
       />
       
@@ -100,7 +100,7 @@ const BottomTabs: React.FC = () => {
         name="Chat" 
         component={ChatScreen}
         options={{
-          tabBarLabel: 'Chat',
+          tabBarLabel: '',
         }}
       />
       
@@ -108,7 +108,7 @@ const BottomTabs: React.FC = () => {
         name="Profile" 
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Hồ sơ',
+          tabBarLabel: '',
         }}
       />
     </Tab.Navigator>
