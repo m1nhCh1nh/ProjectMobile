@@ -1,19 +1,53 @@
-import React from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Image, SafeAreaView, StatusBar, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Image, SafeAreaView, StatusBar, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
+import { API_URL } from '../constants/config';
+import { useNavigation } from '@react-navigation/native';
+
+// Type for a single search result
+type SearchItem = {
+  id: string;
+  title: string;
+  image: string;
+  raw: any;
+};
 
 const SearchScreen = () => {
 
-  const searchResults = [
-    { id: 1, title: 'Beach sunset', image: 'https://via.placeholder.com/300' },
-    { id: 2, title: 'Mountain view', image: 'https://via.placeholder.com/300' },
-    { id: 3, title: 'City skyline', image: 'https://via.placeholder.com/300' },
-    { id: 4, title: 'Nature trail', image: 'https://via.placeholder.com/300' },
-    { id: 5, title: 'Lake reflection', image: 'https://via.placeholder.com/300' },
-  ];
+  const navigation = useNavigation<any>();
 
-  const renderSearchItem = ({ item }) => (
-    <TouchableOpacity style={styles.searchResultItem}>
+  const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+    try {
+      const { data } = await axios.get(`${API_URL}/v1/photos/search`, { params: { query } });
+      console.log('Search response data:', data);
+      // Normalize into UI model: id, title, image
+      const items = Array.isArray(data) ? data : data.photos || [];
+      const mapped = items.map((photo: any) => ({
+        id: photo._id || photo.id,
+        title: photo.description || photo.title,
+        image: photo.url || photo.image || photo.imageUrl,
+        raw: photo,
+      }));
+      setSearchResults(mapped);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderSearchItem = ({ item }: { item: SearchItem }) => (
+    <TouchableOpacity
+      style={styles.searchResultItem}
+      onPress={() => navigation.navigate('PhotoDetail', { photo: item.raw })}
+    >
       <Image
         source={{ uri: item.image }}
         style={styles.searchResultImage}
@@ -38,7 +72,7 @@ const SearchScreen = () => {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Search Photos</Text>
-        <TouchableOpacity style={styles.searchIconButton}>
+        <TouchableOpacity style={styles.searchIconButton} onPress={handleSearch}>
           <Ionicons name="search" size={24} color="#333" />
         </TouchableOpacity>
       </View>
@@ -50,7 +84,11 @@ const SearchScreen = () => {
           style={styles.searchInput}
           placeholder="Search by description..."
           placeholderTextColor="#999"
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={handleSearch}
         />
+        {loading && <ActivityIndicator style={{ marginLeft: 8 }} size="small" color="#333" />}
       </View>
 
       
@@ -71,7 +109,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
    
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 0,
+    paddingTop: Platform.OS === 'android' ? ((StatusBar.currentHeight ?? 0) + 10) : 0,
   },
   header: {
     flexDirection: 'row',
