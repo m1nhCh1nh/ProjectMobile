@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import axios, { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import { API_URL } from '../constants/config';
 
 const UploadScreen = ({ navigation }: { navigation: any }) => {
@@ -62,100 +63,91 @@ const UploadScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
       
-      // Get file information
-      const fileInfo = {
-        uri: image.uri,
-        type: image.type || 'image/jpeg', // Use image.type if available
-        name: image.fileName || `photo_${new Date().getTime()}.jpg`, // Use a timestamp if fileName not available
-      };
+      console.log('Original URI:', image.uri);
+      let uploadUri = image.uri;
       
-      // Create form data with optimized entries
-      const formData = new FormData();
-      formData.append('image', fileInfo as any);
-      formData.append('description', description);
-      if (keywords) {
-        formData.append('keywords', keywords);
+      // Xử lý đặc biệt cho Android
+      if (Platform.OS === 'android') {
+        try {
+          // Luôn copy ảnh vào cache trên Android để đảm bảo có thể access được
+          const fsUri = FileSystem.cacheDirectory + (image.fileName || `photo_${Date.now()}.jpg`);
+          await FileSystem.copyAsync({ 
+            from: uploadUri, 
+            to: fsUri 
+          });
+          uploadUri = fsUri;
+          console.log('Converted URI:', uploadUri);
+          
+          // Kiểm tra xem file có tồn tại không
+          const fileInfo = await FileSystem.getInfoAsync(uploadUri);
+          if (!fileInfo.exists) {
+            throw new Error('File does not exist after copying');
+          }
+          console.log('File info:', fileInfo);
+        } catch (err) {
+          console.error('Error preparing file:', err);
+          Alert.alert('Error', 'Failed to prepare image for upload. Please try again.');
+          setIsLoading(false);
+          return;
+        }
       }
-
+      
       // Get the correct API URL 
       const apiUrl = `${API_URL || 'http://192.168.101.237:3000'}/v1/photos/upload`;
-
-      // Create a cancellation token for potential cancel operation
-      const cancelTokenSource = axios.CancelToken.source();
       
-      // Set a shorter timeout for faster failure detection
-      const response = await axios.post(
-        apiUrl,
-        formData,
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${token}`,
-          },
-          onUploadProgress: (progressEvent) => {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / (progressEvent.total || progressEvent.loaded || 1)
-            );
-            setUploadProgress(percentCompleted);
-          },
-          timeout: 20000, // Reduced timeout to 20 seconds for faster failure detection
-          cancelToken: cancelTokenSource.token, // Allow for upload cancellation
-        }
-      );
-
-      Alert.alert(
-        'Success',
-        'Photo uploaded successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setImage(null);
-              setDescription('');
-              setKeywords('');
-              setUploadProgress(0);
-              navigation.navigate('Profile'); 
+      console.log('Uploading to:', apiUrl);
+      
+      // Sử dụng FileSystem.uploadAsync thay vì axios.post
+      const uploadResult = await FileSystem.uploadAsync(apiUrl, uploadUri, {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'image',
+        mimeType: image.type || 'image/jpeg',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+        parameters: {
+          description: description,
+          keywords: keywords || '',
+        },
+        sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
+      });
+      
+      console.log('Upload result:', uploadResult);
+      
+      if (uploadResult.status >= 200 && uploadResult.status < 300) {
+        Alert.alert(
+          'Success',
+          'Photo uploaded successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setImage(null);
+                setDescription('');
+                setKeywords('');
+                setUploadProgress(0);
+                navigation.navigate('Profile'); 
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      } else {
+        throw new Error(`Upload failed with status ${uploadResult.status}: ${uploadResult.body}`);
+      }
     } catch (error) {
       console.error('Upload error:', error);
       
-      // More detailed error handling
-      if (axios.isAxiosError(error)) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        if (error.response) {
-          console.error('Response error data:', error.response.data);
-          console.error('Response error status:', error.response.status);
-          
-          let errorMessage = 'Server error: ';
-          if (error.response.status === 401) {
-            errorMessage = 'Authentication failed. Please login again.';
-            AsyncStorage.removeItem('token');
-            navigation.navigate('Login');
-          } else if (error.response.status === 413) {
-            errorMessage = 'Image file is too large. Please select a smaller image.';
-          } else if (error.response.data && error.response.data.message) {
-            errorMessage = error.response.data.message;
-          } else {
-            errorMessage += `Status code ${error.response.status}`;
-          }
-          
-          Alert.alert('Upload Failed', errorMessage);
-        } else if (error.request) {
-          // The request was made but no response was received
-          Alert.alert(
-            'Network Error',
-            'Could not connect to the server. Please check your internet connection.'
-          );
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          Alert.alert('Error', 'An unexpected error occurred while uploading. Please try again.');
-        }
+      // Xử lý lỗi từ expo-file-system
+      let errorMessage = 'An unexpected error occurred while uploading';
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        errorMessage = error.message;
       }
+      
+      Alert.alert('Upload Failed', errorMessage);
     } finally {
       setIsLoading(false);
       setUploadProgress(0);
