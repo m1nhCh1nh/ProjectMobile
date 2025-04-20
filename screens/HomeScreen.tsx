@@ -1,50 +1,111 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, StatusBar, Platform } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import React, { useCallback } from 'react';
+import { 
+  View, 
+  FlatList, 
+  StyleSheet, 
+  SafeAreaView, 
+  StatusBar, 
+  Text,
+  Platform,
+  RefreshControl,
+  TouchableOpacity,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { usePhotos } from '../hooks/usePhotos';
+import PhotoCard from '../components/PhotoCard';
+import LoadingIndicator from '../components/LoadingIndicator';
 
-const PhotoGallery = () => {
-  // Dữ liệu ảnh mẫu
-  const photos = [
-    { id: 1, title: 'Beautiful sunset at the beach', image: require('../assets/images/pexels-photo-9944662.jpeg') },
-    { id: 2, title: 'Mountain hiking adventure', image: 'https://via.placeholder.com/400' },
-    { id: 3, title: 'City lights at night', image: 'https://via.placeholder.com/400' },
-    { id: 4, title: 'Forest exploration', image: 'https://via.placeholder.com/400' },
-  ];
+// Định nghĩa kiểu Photo khớp với API
+interface Photo {
+  id: string;
+  imageUrl: string;
+  description: string;
+  keywords: string[];
+  user: {
+    name: string;
+    email: string;
+  };
+  likes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Định nghĩa kiểu RootStackParamList
+type RootStackParamList = {
+  Home: undefined;
+  PhotoDetail: { photo: Photo };
+};
+
+// Định nghĩa kiểu props cho HomeScreen
+type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
+
+const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  const { photos, loading, error, refetch } = usePhotos();
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  // Xử lý khi người dùng bấm vào một ảnh
+  const handlePhotoPress = useCallback((photo: Photo) => {
+    navigation.navigate('PhotoDetail', { photo });
+  }, [navigation]);
+
+  // Xử lý làm mới danh sách
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  // Hiển thị màn hình loading khi đang tải dữ liệu lần đầu
+  if (loading && !refreshing) {
+    return <LoadingIndicator />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="dark-content"
-      />
-
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Photo Gallery</Text>
+        <Text style={styles.headerTitle}>Thư viện ảnh</Text>
       </View>
 
-     
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.galleryGrid}>
-          {photos.map((photo) => (
-            <View key={photo.id} style={styles.photoCard}>
-              <Image
-                source={typeof photo.image === 'string' ? { uri: photo.image } : photo.image}
-                style={styles.photoImage}
-                resizeMode="cover"
-              />
-              <View style={styles.photoTitleContainer}>
-                <Text style={styles.photoTitle}>{photo.title}</Text>
-              </View>
-            </View>
-          ))}
+      {error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+            <Text style={styles.retryText}>Thử lại</Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-
-      
-  
+      ) : photos.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Không có ảnh nào để hiển thị</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+            <Text style={styles.retryText}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={photos}
+          renderItem={({ item }) => (
+            <PhotoCard 
+              photo={item} 
+              onPress={handlePhotoPress} 
+            />
+          )}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#273c75']}
+              tintColor={'#273c75'}
+            />
+          }
+          initialNumToRender={6}
+          windowSize={5}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -52,58 +113,67 @@ const PhotoGallery = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 0,
+    backgroundColor: '#f5f5f5',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
   header: {
-    padding: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#e0e0e0',
     alignItems: 'center',
-    
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#273c75',
-    textAlign: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  galleryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 10,
-  },
-  photoCard: {
-    width: '50%',
-    padding: 5,
-    marginBottom: 10,
-  },
-  photoImage: {
-    width: '100%',
-    height: 180,
-    borderRadius: 10,
-    backgroundColor: '#f1f1f1',
-  },
-  photoTitleContainer: {
-    padding: 8,
     backgroundColor: '#fff',
-    borderRadius: 8,
-    marginTop: -15,
-    marginHorizontal: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 3,
   },
-  photoTitle: {
-    fontSize: 12,
-    fontWeight: '500',
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#273c75',
+  },
+  listContainer: {
+    padding: 10,
+    paddingBottom: 20,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#d32f2f',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  retryButton: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#2196F3',
+    borderRadius: 5,
+  },
+  retryText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
   },
 });
 
-export default PhotoGallery;
+export default HomeScreen;

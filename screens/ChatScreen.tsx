@@ -2,9 +2,17 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, StatusBar, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+// Định nghĩa kiểu dữ liệu cho tin nhắn
+interface Message {
+  id: number;
+  sender: string;
+  message: string;
+  time: string;
+}
+
 const ChatScreen = () => {
-  
-  const messages = [
+  // Dữ liệu mẫu
+  const messages: Message[] = [
     { id: 1, sender: 'John Doe', message: 'Hello, how are you?', time: '10:30 AM' },
     { id: 2, sender: 'Jane Smith', message: 'Can you share that photo?', time: '09:15 AM' },
     { id: 3, sender: 'Mike Johnson', message: 'Nice photos from your trip!', time: 'Yesterday' },
@@ -12,7 +20,8 @@ const ChatScreen = () => {
     { id: 5, sender: 'Alex Brown', message: 'Check out my new gallery', time: 'Monday' },
   ];
 
-  const renderMessageItem = ({ item }) => (
+  // Định nghĩa kiểu cho `item` trong renderMessageItem
+  const renderMessageItem = ({ item }: { item: Message }) => (
     <TouchableOpacity style={styles.messageItem}>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{item.sender.charAt(0)}</Text>
@@ -25,16 +34,13 @@ const ChatScreen = () => {
     </TouchableOpacity>
   );
 
-  return (
-    <SafeAreaView style={styles.container}>
-    
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="dark-content"
-      />
+  // Tính toán paddingTop để tránh lỗi StatusBar.currentHeight undefined
+  const paddingTop = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 0;
 
-      
+  return (
+    <SafeAreaView style={[styles.container, { paddingTop }]}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity style={styles.profileButton}>
@@ -45,7 +51,6 @@ const ChatScreen = () => {
         </TouchableOpacity>
       </View>
 
-    
       <FlatList
         data={messages}
         renderItem={renderMessageItem}
@@ -60,8 +65,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-   
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 0,
   },
   header: {
     flexDirection: 'row',
@@ -95,7 +98,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   flatListContent: {
-    paddingBottom: 60, 
+    paddingBottom: 60,
   },
   messageItem: {
     flexDirection: 'row',
