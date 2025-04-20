@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import BottomTabs from './navigation/bottomTabs';
 import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
@@ -39,20 +39,26 @@ type RootStackParamList = {
   Profile: undefined;
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Main" // Khởi động trực tiếp vào BottomTabs để test HomeScreen
+        initialRouteName="Login" // Khởi động vào màn hình Login/Signup khi mở app
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="Main" component={BottomTabs} />
         <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="PhotoDetail" component={PhotoDetailScreen} />
+        <Stack.Screen
+          name="PhotoDetail"
+          component={PhotoDetailScreen}
+          options={{
+            cardStyleInterpolator: CardStyleInterpolators.forScaleFromCenterAndroid,
+          }}
+        />
         <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen name="Add" component={UploadScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />

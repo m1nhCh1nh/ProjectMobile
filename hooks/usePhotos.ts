@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '../constants/config';
 
 // Định nghĩa kiểu dữ liệu cho một ảnh
 interface Photo {
@@ -15,7 +16,7 @@ interface Photo {
   updatedAt: string;
 }
 
-export const usePhotos = () => {
+export const usePhotos = (page: number = 1, limit: number = 10) => {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export const usePhotos = () => {
 
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.110.143:3000/photos', {
+      const response = await fetch(`${API_URL}/v1/photos?page=${page}&limit=${limit}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -47,12 +48,23 @@ export const usePhotos = () => {
         }
       }
 
-      const data: Photo[] = await response.json();
-      if (!Array.isArray(data)) {
-        throw new Error('Dữ liệu trả về không phải là danh sách ảnh.');
+      // Parse response JSON with photos array
+      const json = await response.json();
+      if (!json.photos || !Array.isArray(json.photos)) {
+        throw new Error('Dữ liệu trả về không chứa danh sách ảnh.');
       }
-
-      setPhotos(data);
+      // Map API response to Photo interface
+      const mappedPhotos: Photo[] = json.photos.map((p: any) => ({
+        id: p._id,
+        imageUrl: p.imageUrl,
+        description: p.description,
+        keywords: p.keywords,
+        user: { name: p.user.name, email: p.user.email },
+        likes: p.likes,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+      setPhotos(mappedPhotos);
       setError(null);
     } catch (err: any) {
       // Xóa timeout nếu có lỗi
@@ -73,7 +85,7 @@ export const usePhotos = () => {
     return () => {
       // Không cần làm gì nếu đã xử lý cleanup trong fetchPhotos
     };
-  }, []);
+  }, [page, limit]);
 
   return { photos, loading, error, refetch: fetchPhotos };
 };
