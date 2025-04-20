@@ -9,6 +9,7 @@ import PhotoDetailScreen from './screens/PhotoDetailScreen';
 import UploadScreen from './screens/UploadScreen';
 import SearchScreen from './screens/SearchScreen';
 import ChatScreen from './screens/ChatScreen';
+import UserProfileScreen from './screens/UserProfileScreen';
 import ProfileScreen from './screens/ProfileScreen';
 
 // Định nghĩa kiểu Photo cho PhotoDetail
@@ -27,7 +28,7 @@ interface Photo {
 }
 
 // Định nghĩa kiểu cho Stack Navigator
-type RootStackParamList = {
+export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   Main: undefined;
@@ -37,6 +38,7 @@ type RootStackParamList = {
   Add: undefined;
   Chat: undefined;
   Profile: undefined;
+  UserProfile: { user: { name: string; email: string } };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -63,6 +65,7 @@ export default function App() {
         <Stack.Screen name="Add" component={UploadScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="UserProfile" component={UserProfileScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
