@@ -40,7 +40,7 @@ type RootStackParamList = {
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const { photos, loading, error, refetch } = usePhotos();
+  const { photos, loading, error, refetch } = usePhotos(1, 50);
   const [refreshing, setRefreshing] = React.useState(false);
 
   // Xử lý khi người dùng bấm vào một ảnh

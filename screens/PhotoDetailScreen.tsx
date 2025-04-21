@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/config';
+import UserProfileScreen from './UserProfileScreen';
 
 // Định nghĩa kiểu Photo khớp với API
 interface Photo {
@@ -36,6 +37,7 @@ interface Photo {
 type RootStackParamList = {
   Home: undefined;
   PhotoDetail: { photo: Photo };
+  UserProfile: { user: { name: string; email: string } };
 };
 
 // Định nghĩa kiểu props cho PhotoDetailScreen
@@ -106,10 +108,13 @@ const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ route, navigation
         <View style={styles.detailsContainer}>
           <Text style={styles.title}>{photo.description}</Text>
           
-          <View style={styles.infoRow}>
+          <TouchableOpacity
+            style={styles.infoRow}
+            onPress={() => navigation.navigate('UserProfile', { user: photo.user })}
+          >
             <Ionicons name="person-outline" size={18} color="#555" />
-            <Text style={styles.infoText}>Đăng bởi: {photo.user.name}</Text>
-          </View>
+            <Text style={styles.infoText}>{photo.user.name}</Text>
+          </TouchableOpacity>
           
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={18} color="#555" />
