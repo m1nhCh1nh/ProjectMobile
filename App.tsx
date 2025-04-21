@@ -12,7 +12,7 @@ import ChatScreen from './screens/ChatScreen';
 import UserProfileScreen from './screens/UserProfileScreen';
 import ProfileScreen from './screens/ProfileScreen';
 
-// Định nghĩa kiểu Photo cho PhotoDetail
+
 interface Photo {
   id: string;
   imageUrl: string;
@@ -27,7 +27,7 @@ interface Photo {
   updatedAt: string;
 }
 
-// Định nghĩa kiểu cho Stack Navigator
+
 export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
@@ -47,7 +47,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Login" // Khởi động vào màn hình Login/Signup khi mở app
+        initialRouteName="Login" 
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
