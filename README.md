@@ -48,3 +48,68 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+## Git
+
+====================================================
+    Git Flow cho dự án Photo‑app (React Native/Expo)
+====================================================
+
+1. Tổng quan
+   - Nhánh chính:
+     • master   : Luôn luôn là code đã release.
+     • develop  : Code tích hợp, chuẩn bị cho release.
+
+   - Nhánh hỗ trợ:
+     • feature/… : Tính năng mới, xuất phát từ develop.
+     • release/… : Chuẩn bị phiên bản, xuất phát từ develop.
+     • hotfix/…  : Sửa lỗi khẩn cấp production, xuất phát từ master.
+
+2. Khởi tạo Git Flow
+   $ git flow init -d
+   (để dùng cấu hình mặc định: master/develop)
+
+3. Quy ước đặt tên
+   - feature/<tên-tính-năng>
+   - release/<version>          (ví dụ: release/1.2.0)
+   - hotfix/<version>           (ví dụ: hotfix/1.2.1)
+
+4. Luồng làm việc
+
+   4.1. Phát triển tính năng mới
+     $ git flow feature start <tên-tính-năng>
+     → làm việc, commit thường xuyên vào feature/…
+     $ git flow feature finish <tên-tính-năng>
+     → Git tự merge về develop và xoá nhánh feature.
+
+   4.2. Chuẩn bị bản Release
+     $ git flow release start <version>
+     → cập nhật version, docs, test
+     $ git flow release finish <version>
+     → Git tự:
+        • merge release → master (tag version)
+        • merge release → develop
+        • xóa nhánh release
+
+   4.3. Hotfix (sửa lỗi khẩn)
+     $ git flow hotfix start <version>
+     → sửa, commit
+     $ git flow hotfix finish <version>
+     → Git tự:
+        • merge hotfix → master (tag version)
+        • merge hotfix → develop
+        • xóa nhánh hotfix
+
+5. Đẩy (push) lên remote
+   - Sau mỗi finish: 
+     $ git push origin master develop
+     $ git push --tags
+
+6. Ghi chú
+   - Luôn rebase/sync develop trước khi start feature.
+   - Tuân thủ code review & CI trước khi merge.
+   - Cập nhật CHANGELOG.md ở nhánh release.
+
+====================================================
+
