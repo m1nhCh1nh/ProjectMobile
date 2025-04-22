@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import BottomTabs from './navigation/bottomTabs';
+import WelcomeScreen from './screens/WelcomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/SignupScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -29,6 +30,7 @@ interface Photo {
 
 // Định nghĩa kiểu cho Stack Navigator
 export type RootStackParamList = {
+  Welcome: undefined;
   Login: undefined;
   Signup: undefined;
   Main: undefined;
@@ -47,9 +49,10 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Login" // Khởi động vào màn hình Login/Signup khi mở app
+        initialRouteName="Welcome" // Đổi thành Welcome để hiển thị màn hình Welcome trước
         screenOptions={{ headerShown: false }}
       >
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="Main" component={BottomTabs} />
