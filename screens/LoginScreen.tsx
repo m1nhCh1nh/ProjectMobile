@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Imag
 import { StatusBar } from 'expo-status-bar';
 import axios, { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../constants/config';
 
 interface LoginForm {
   email: string;
@@ -14,7 +15,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post('http://192.168.101.237:3000/v1/users/login', {
+      const response = await axios.post(`http://${API_URL}/v1/users/login`, {
         email: formData.email,
         password: formData.password,
       });

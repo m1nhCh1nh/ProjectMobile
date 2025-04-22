@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import axios, { AxiosError } from 'axios';
+import { API_URL } from '../constants/config';
 
 interface SignupForm {
   fullName: string;
@@ -42,7 +43,7 @@ const SignupScreen: React.FC = ({ navigation }: any) => {
 
     setIsLoading(true);
     try {
-      const response = await axios.post('http://192.168.101.237:3000/v1/users/register', {
+      const response = await axios.post(`http://${API_URL}/v1/users/register`, {
         email: formData.email,
         password: formData.password,
         name: formData.fullName
