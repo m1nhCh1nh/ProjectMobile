@@ -1,0 +1,173 @@
+
+
+GitHub Copilot: # API DOCUMENTATION - PHOTO APP BACKEND
+
+## Base URL
+All endpoints are prefixed with: http://192.168.101.237:3000/v1
+
+## Authentication
+- Many endpoints require JWT authentication
+- Tokens are provided via:
+  - HTTP-only cookies
+  - Authorization header (Bearer token)
+- Refresh token mechanism is available
+
+## 1. STATUS API
+
+| Method | Endpoint   | Description              | Auth Required |
+|--------|------------|--------------------------|--------------|
+| GET    | /status    | Check if API is running  | No           |
+
+## 2. USER APIs (/users)
+
+| Method | Endpoint        | Description                     | Auth Required | Request Body                          |
+|--------|----------------|---------------------------------|--------------|--------------------------------------|
+| POST   | /register      | Register new user               | No           | {email, password, name}              |
+| POST   | /login         | Login and get tokens            | No           | {email, password}                    |
+| DELETE | /logout        | Logout (clear cookies)          | No           | -                                    |
+| PUT    | /refresh_token | Refresh access token            | No           | -                                    |
+
+### Register and Login Response:
+```json
+{
+  "message": "Success message",
+  "user": {
+    "id": "user_id",
+    "email": "user_email",
+    "name": "user_name"
+  },
+  "accessToken": "jwt_token",
+  "refreshToken": "jwt_token"
+}
+```
+
+## 3. PHOTO APIs (/photos)
+
+| Method | Endpoint        | Description                     | Auth Required | Parameters/Body                       |
+|--------|----------------|---------------------------------|--------------|--------------------------------------|
+| POST   | /upload        | Upload a new photo              | Yes          | multipart/form-data: {image, description, keywords} |
+| GET    | /              | Get all photos with pagination  | No           | Query: page, limit                   |
+| GET    | /search        | Search photos                   | No           | Query: query                         |
+| GET    | /:id           | Get photo by ID                 | No           | Path: id                             |
+| PUT    | /:id           | Toggle like/unlike a photo      | Yes          | Path: id                             |
+| DELETE | /:id           | Delete photo (owner only)       | Yes          | Path: id                             |
+
+### Get All Photos Response:
+```json
+{
+  "photos": [...],
+  "currentPage": 1,
+  "totalPages": 10,
+  "totalPhotos": 100
+}
+```
+
+### Search Photos Response:
+```json
+{
+  "count": 5,
+  "photos": [...]
+}
+```
+
+### Photo Object Structure:
+```json
+{
+  "_id": "photo_id",
+  "imageUrl": "cloudinary_url",
+  "publicId": "cloudinary_public_id",
+  "description": "Photo description",
+  "keywords": ["keyword1", "keyword2"],
+  "likedBy": ["user_id1", "user_id2"],
+  "likes": 10,
+  "user": {
+    "_id": "user_id",
+    "name": "user_name",
+    "email": "user_email"
+  },
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
+## 4. CHAT APIs (/chats)
+
+| Method | Endpoint           | Description                     | Auth Required | Parameters/Body                      |
+|--------|-------------------|---------------------------------|--------------|------------------------------------|
+| POST   | /                 | Create a new chat               | Yes          | {participants: [user_ids]}          |
+| GET    | /                 | Get all user chats              | Yes          | -                                  |
+| GET    | /:chatId/messages | Get messages in a chat          | Yes          | Path: chatId, Query: page, limit   |
+
+### Chat Object Structure:
+```json
+{
+  "_id": "chat_id",
+  "participants": [
+    {
+      "_id": "user_id",
+      "name": "user_name",
+      "email": "user_email"
+    }
+  ],
+  "lastMessage": {
+    "_id": "message_id",
+    "text": "message_text",
+    "sender": "user_id",
+    "createdAt": "timestamp"
+  },
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
+### Get Messages Response:
+```json
+{
+  "messages": [...],
+  "currentPage": 1,
+  "totalPages": 5,
+  "totalMessages": 100
+}
+```
+
+## 5. SOCKET.IO EVENTS
+
+The server also supports real-time chat via Socket.IO connections:
+
+### Connection:
+- URL: ws://192.168.101.237:3000
+- Authentication: Requires token in handshake auth object
+
+### Client → Server Events:
+| Event        | Description           | Data                           |
+|--------------|-----------------------|--------------------------------|
+| joinChat     | Join a chat room      | chatId                         |
+| leaveChat    | Leave a chat room     | chatId                         |
+| sendMessage  | Send a message        | {chatId, text}                 |
+| typing       | User is typing        | {chatId}                       |
+| stopTyping   | User stopped typing   | {chatId}                       |
+
+### Server → Client Events:
+| Event        | Description           | Data                           |
+|--------------|-----------------------|--------------------------------|
+| message      | New message received  | Message object                 |
+| typing       | User is typing        | {user, name}                   |
+| stopTyping   | User stopped typing   | {user, name}                   |
+| error        | Error notification    | {message}                      |
+
+### Message Object Structure:
+```json
+{
+  "_id": "message_id",
+  "chat": "chat_id",
+  "sender": {
+    "_id": "user_id",
+    "name": "user_name",
+    "email": "user_email"
+  },
+  "text": "message_text",
+  "readBy": ["user_id1", "user_id2"],
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```

@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, SafeAreaView, StatusBar, Platform, Alert, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, SafeAreaView, StatusBar, Platform, Alert, Image, ActivityIndicator, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import axios, { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
-import { API_URL } from '../constants/config';
+import api from '../services/apiService';
 
 const UploadScreen = ({ navigation }: { navigation: any }) => {
   const [image, setImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -13,6 +12,7 @@ const UploadScreen = ({ navigation }: { navigation: any }) => {
   const [keywords, setKeywords] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isPublic, setIsPublic] = useState(true); // Default to public
 
   const pickImage = async () => {
     try {
@@ -56,10 +56,10 @@ const UploadScreen = ({ navigation }: { navigation: any }) => {
     setUploadProgress(0);
 
     try {
-      const token = await AsyncStorage.getItem('token');
+      // Ensure user is authenticated
+      const token = await AsyncStorage.getItem('accessToken');
       if (!token) {
         Alert.alert('Authentication Error', 'You need to be logged in to upload photos');
-        navigation.navigate('Login');
         return;
       }
       
@@ -92,49 +92,93 @@ const UploadScreen = ({ navigation }: { navigation: any }) => {
         }
       }
       
-      // Get the correct API URL 
-      const apiUrl = `${API_URL || 'http://192.168.101.237:3000'}/v1/photos/upload`;
+      let response;
       
-      console.log('Uploading to:', apiUrl);
-      
-      // Sử dụng FileSystem.uploadAsync thay vì axios.post
-      const uploadResult = await FileSystem.uploadAsync(apiUrl, uploadUri, {
-        httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-        fieldName: 'image',
-        mimeType: image.type || 'image/jpeg',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        parameters: {
-          description: description,
-          keywords: keywords || '',
-        },
-        sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
-      });
-      
-      console.log('Upload result:', uploadResult);
-      
-      if (uploadResult.status >= 200 && uploadResult.status < 300) {
-        Alert.alert(
-          'Success',
-          'Photo uploaded successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setImage(null);
-                setDescription('');
-                setKeywords('');
-                setUploadProgress(0);
-                navigation.navigate('Profile'); 
-              },
+      // Sử dụng FileSystem.uploadAsync cho Android
+      if (Platform.OS === 'android') {
+        // Chuẩn bị parameters cho uploadAsync
+        const options = {
+          uploadUrl: `${api.defaults.baseURL}/v1/photos/upload`,
+          fieldName: 'image',
+          mimeType: image.type || 'image/jpeg',
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          parameters: {
+            description,
+            keywords: keywords || '',
+            isPublic: isPublic.toString()
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          }
+        };
+        
+        // Gọi uploadAsync với đúng cú pháp
+        const uploadResult = await FileSystem.uploadAsync(options.uploadUrl, uploadUri, {
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          fieldName: 'image',
+          mimeType: image.type || 'image/jpeg',
+          parameters: {
+            description,
+            keywords: keywords || '',
+            isPublic: isPublic.toString()
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          }
+        });
+        console.log('Upload result:', uploadResult);
+        
+        // Xử lý kết quả trả về từ uploadAsync
+        if (uploadResult.status >= 200 && uploadResult.status < 300) {
+          response = { status: uploadResult.status, data: JSON.parse(uploadResult.body) };
+        } else {
+          throw new Error(`Upload failed with status ${uploadResult.status}: ${uploadResult.body}`);
+        }
+      } 
+      // Sử dụng axios cho iOS
+      else {
+        // Prepare multipart form data cho iOS
+        const formData = new FormData();
+        formData.append('image', {
+          uri: uploadUri,
+          name: image.fileName || `photo_${Date.now()}.jpg`,
+          type: image.type || 'image/jpeg',
+        } as any);
+        formData.append('description', description);
+        formData.append('keywords', keywords || '');
+        formData.append('isPublic', isPublic.toString());
+        
+        // Gọi API với axios
+        response = await api.post(
+          '/v1/photos/upload',
+          formData,
+          {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (e) => {
+              const prog = Math.round((e.loaded * 100) / (e.total ?? 1));
+              setUploadProgress(prog);
             },
-          ]
+          }
         );
+      }
+      
+      if (response.status >= 200 && response.status < 300) {
+        Alert.alert('Success', 'Photo uploaded successfully!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              setImage(null);
+              setDescription('');
+              setKeywords('');
+              setUploadProgress(0);
+              navigation.navigate('Profile');
+            },
+          },
+        ]);
       } else {
-        throw new Error(`Upload failed with status ${uploadResult.status}: ${uploadResult.body}`);
+        throw new Error(`Upload failed with status ${response.status}`);
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -223,6 +267,23 @@ const UploadScreen = ({ navigation }: { navigation: any }) => {
           onChangeText={setKeywords}
           editable={!isLoading}
         />
+        
+        {/* Add visibility toggle */}
+        <View style={styles.visibilityContainer}>
+          <Text style={styles.visibilityLabel}>Make this photo public</Text>
+          <Switch
+            value={isPublic}
+            onValueChange={setIsPublic}
+            disabled={isLoading}
+            trackColor={{ false: "#767577", true: "#81b0ff" }}
+            thumbColor={isPublic ? "#2196F3" : "#f4f3f4"}
+          />
+        </View>
+        <Text style={styles.visibilityHint}>
+          {isPublic 
+            ? "Anyone can see this photo" 
+            : "Only you can see this photo"}
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -319,6 +380,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
     fontWeight: 'bold',
+  },
+  visibilityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  visibilityLabel: {
+    fontSize: 16,
+    color: '#333',
+  },
+  visibilityHint: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
 });
 

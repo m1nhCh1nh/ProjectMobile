@@ -51,8 +51,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   // Xử lý làm mới danh sách
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+    try {
+      await refetch();
+    } catch (err) {
+      console.error("Error refreshing:", err);
+    } finally {
+      setRefreshing(false);
+    }
   }, [refetch]);
 
   // Hiển thị màn hình loading khi đang tải dữ liệu lần đầu

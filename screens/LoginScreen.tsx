@@ -15,7 +15,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post(`http://${API_URL}/v1/users/login`, {
+      const response = await axios.post(`${API_URL}/v1/users/login`, {
         email: formData.email,
         password: formData.password,
       });
@@ -28,7 +28,8 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
       console.log("Token: ", token);
       if(token==undefined)
         console.log("Token is undefined");
-      await AsyncStorage.setItem('token', token);
+      await AsyncStorage.setItem('accessToken', token);
+      await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
 
       Alert.alert(
         'Success',

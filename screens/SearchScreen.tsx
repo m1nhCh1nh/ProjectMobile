@@ -48,12 +48,24 @@ const SearchScreen = () => {
       style={styles.searchResultItem}
       onPress={() => navigation.navigate('PhotoDetail', { photo: item.raw })}
     >
-      <Image
-        source={{ uri: item.image }}
-        style={styles.searchResultImage}
-        resizeMode="cover"
-      />
-      <Text style={styles.searchResultTitle}>{item.title}</Text>
+      <View style={styles.photoContainer}>
+        <Image 
+          source={{ uri: item.image }} 
+          style={styles.photoImage}
+          resizeMode="cover"
+        />
+        
+        {/* Show private indicator if the photo is the user's private photo */}
+        {!item.raw.isPublic && (
+          <View style={styles.privateIndicator}>
+            <Ionicons name="lock-closed" size={16} color="#fff" />
+          </View>
+        )}
+        
+        <Text style={styles.photoDescription} numberOfLines={2}>
+          {item.title}
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 
@@ -166,6 +178,28 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: 16,
     fontWeight: '500',
+  },
+  photoContainer: {
+    marginTop: 8,
+  },
+  photoImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: '#f1f1f1',
+  },
+  privateIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 8,
+    padding: 4,
+  },
+  photoDescription: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#333',
   },
 });
 

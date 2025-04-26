@@ -8,6 +8,7 @@ interface Photo {
   description: string;
   keywords: string[];
   user: {
+    _id: string;
     name: string;
     email: string;
   };
@@ -59,7 +60,7 @@ export const usePhotos = (page: number = 1, limit: number = 10) => {
         imageUrl: p.imageUrl,
         description: p.description,
         keywords: p.keywords,
-        user: { name: p.user.name, email: p.user.email },
+        user: { _id: p.user._id, name: p.user.name, email: p.user.email },
         likes: p.likes,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
@@ -78,6 +79,10 @@ export const usePhotos = (page: number = 1, limit: number = 10) => {
     }
   };
 
+  const refetch = () => {
+    return fetchPhotos();
+  };
+
   useEffect(() => {
     fetchPhotos();
     
@@ -87,5 +92,5 @@ export const usePhotos = (page: number = 1, limit: number = 10) => {
     };
   }, [page, limit]);
 
-  return { photos, loading, error, refetch: fetchPhotos };
+  return { photos, loading, error, refetch };
 };

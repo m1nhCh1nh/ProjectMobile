@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
+import { StackScreenProps } from '@react-navigation/stack';
 import BottomTabs from './navigation/bottomTabs';
 import WelcomeScreen from './screens/WelcomeScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -12,6 +13,7 @@ import SearchScreen from './screens/SearchScreen';
 import ChatScreen from './screens/ChatScreen';
 import UserProfileScreen from './screens/UserProfileScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import ChatListScreen from './screens/ChatListScreen';
 
 // Định nghĩa kiểu Photo cho PhotoDetail
 interface Photo {
@@ -38,10 +40,20 @@ export type RootStackParamList = {
   PhotoDetail: { photo: Photo };
   Search: undefined;
   Add: undefined;
-  Chat: undefined;
+  Chat: { 
+    recipient?: string, 
+    email?: string, 
+    userId?: string, 
+    chatId?: string,
+    user?: { name: string; email: string; _id?: string; id?: string } 
+  };
   Profile: undefined;
-  UserProfile: { user: { name: string; email: string } };
+  UserProfile: { user: { name: string; email: string; _id?: string; id?: string } };
+  ChatList: undefined;
 };
+
+// Define props type for PhotoDetailScreen
+export type PhotoDetailScreenProps = StackScreenProps<RootStackParamList, 'PhotoDetail'>;
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -57,18 +69,13 @@ export default function App() {
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="Main" component={BottomTabs} />
         <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen
-          name="PhotoDetail"
-          component={PhotoDetailScreen}
-          options={{
-            cardStyleInterpolator: CardStyleInterpolators.forScaleFromCenterAndroid,
-          }}
-        />
+        <Stack.Screen name="PhotoDetail" component={PhotoDetailScreen as React.ComponentType}/>
         <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen name="Add" component={UploadScreen} />
-        <Stack.Screen name="Chat" component={ChatScreen} />
-        <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen}/>
+        <Stack.Screen name="UserProfile" component={UserProfileScreen as React.ComponentType} />
+        <Stack.Screen name="Chat" component={ChatScreen as React.ComponentType} options={{ headerShown: false }} />
+        <Stack.Screen name="ChatList" component={ChatListScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
