@@ -97,7 +97,7 @@ const ChatListScreen = () => {
       setLoading(true);
       setError(null);
       
-      const userToken = await AsyncStorage.getItem('token');
+      const userToken = await AsyncStorage.getItem('accessToken');
       
       if (!userToken) {
         throw new Error('Bạn cần đăng nhập để xem tin nhắn');
