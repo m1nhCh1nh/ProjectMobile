@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, SafeAreaView, StatusBar, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, SafeAreaView, StatusBar, Platform, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/apiService';
 import axios from 'axios';
 import { API_URL } from '../constants/config';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 const ProfileScreen = () => {
@@ -18,6 +18,7 @@ const ProfileScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('grid'); // 'grid', 'bookmark', or 'heart'
   const [likedPhotos, setLikedPhotos] = useState<Array<{ id: string; imageUrl: string; description?: string; isPublic?: boolean }>>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -127,30 +128,39 @@ const ProfileScreen = () => {
         throw new Error('No authentication token found');
       }
       
-      const response = await axios.get(`${API_URL}/v1/photos/liked`, {
+      // Get all photos (will include public photos + own photos)
+      const response = await axios.get(`${API_URL}/v1/photos`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         params: {
           page: 1,
-          limit: 20
+          limit: 50 // Higher limit to get more photos
         }
       });
       
-      console.log('Liked photos response:', response.data);
-      
       if (!response.data || !response.data.photos || !Array.isArray(response.data.photos)) {
-        console.error('Invalid response format for liked photos:', response.data);
         throw new Error('Invalid response format from server');
       }
       
-      // Transform the data to match your expected format
-      const transformedPhotos = response.data.photos.map((photo: { 
+      // Filter only photos that the current user has liked
+      const liked = response.data.photos.filter((photo: {
         _id: string;
         imageUrl: string;
         description?: string;
         isPublic?: boolean;
+        likedBy?: string[];
+      }) => 
+        photo.likedBy && profile && photo.likedBy.includes(profile.id)
+      );
+      
+      const transformedPhotos = liked.map((photo: {
+        _id: string;
+        imageUrl: string;
+        description?: string;
+        isPublic?: boolean;
+        likedBy?: string[];
       }) => ({
         id: photo._id,
         imageUrl: photo.imageUrl,
@@ -159,19 +169,9 @@ const ProfileScreen = () => {
       }));
       
       setLikedPhotos(transformedPhotos);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching liked photos:', error);
-      
-      if (error.response) {
-        console.error('Error response:', error.response.status, error.response.data);
-        if (error.response.status === 401) {
-          Alert.alert('Authentication Error', 'Your session has expired. Please login again.');
-          handleLogout();
-          return;
-        }
-      }
-      
-      Alert.alert('Error', 'Could not load your liked photos. Please try again later.');
+      Alert.alert('Error', 'Could not load your liked photos');
       setLikedPhotos([]);
     } finally {
       setIsLoading(false);
@@ -293,6 +293,26 @@ const ProfileScreen = () => {
     }
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      // Skip if we're already loading or don't have a profile yet
+      if (!isLoading && profile) {
+        fetchPhotos();
+      }
+      
+      return () => {
+        // Cleanup if needed
+      };
+    }, [profile]) // Depend on profile to avoid unnecessary fetches
+  );
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchPhotos().then(() => {
+      setRefreshing(false);
+    });
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
       
@@ -323,6 +343,14 @@ const ProfileScreen = () => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2196F3']}
+            tintColor={'#2196F3'}
+          />
+        }
       >
         <View style={styles.profileSection}>
           <View style={styles.profileHeader}>
