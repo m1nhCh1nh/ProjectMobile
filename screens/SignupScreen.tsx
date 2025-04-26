@@ -43,7 +43,7 @@ const SignupScreen: React.FC = ({ navigation }: any) => {
 
     setIsLoading(true);
     try {
-      const response = await axios.post(`http://${API_URL}/v1/users/register`, {
+      const response = await axios.post(`${API_URL}/v1/users/register`, {
         email: formData.email,
         password: formData.password,
         name: formData.fullName

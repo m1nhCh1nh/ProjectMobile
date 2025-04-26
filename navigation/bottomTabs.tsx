@@ -1,19 +1,22 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, GestureResponderEvent, StyleProp, ViewStyle } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
 import UploadScreen from '../screens/UploadScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SearchScreen from '../screens/SearchScreen';
-import ChatScreen from '../screens/ChatScreen';
+import ChatListScreen from '../screens/ChatListScreen';
 import { Ionicons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
 
 type TabParamList = {
   Home: undefined;
   Search: undefined;
-  Add: undefined;
-  Chat: undefined;
+  Upload: undefined;
+  ListChat: undefined;
   Profile: undefined;
 };
 
@@ -48,15 +51,15 @@ const BottomTabs: React.FC = () => {
         tabBarInactiveTintColor: 'gray',
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'home';
+          let iconName: IconName = 'home';
           
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Search') {
             iconName = focused ? 'search' : 'search-outline';
-          } else if (route.name === 'Add') {
+          } else if (route.name === 'Upload') {
             return null; 
-          } else if (route.name === 'Chat') {
+          } else if (route.name === 'ListChat') {
             iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
@@ -83,7 +86,7 @@ const BottomTabs: React.FC = () => {
       />
       
       <Tab.Screen 
-        name="Add" 
+        name="Upload" 
         component={UploadScreen}
         options={{
           tabBarButton: (props) => (
@@ -97,8 +100,8 @@ const BottomTabs: React.FC = () => {
       />
       
       <Tab.Screen 
-        name="Chat" 
-        component={ChatScreen}
+        name="ListChat" 
+        component={ChatListScreen}
         options={{
           tabBarLabel: '',
         }}
