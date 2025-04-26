@@ -146,7 +146,7 @@ const ProfileScreen = () => {
       
       // Filter only photos that the current user has liked
       const liked = response.data.photos.filter((photo: {
-        _id: string;
+        _id: string; 
         imageUrl: string;
         description?: string;
         isPublic?: boolean;
@@ -414,6 +414,15 @@ const ProfileScreen = () => {
               key={photo.id} 
               style={styles.photoItem}
               onLongPress={() => handlePhotoLongPress(photo)}
+              onPress={() => navigation.navigate('PhotoDetail', { 
+                photoId: photo.id,
+                photo: {
+                  _id: photo.id,  // Change from id to _id
+                  imageUrl: photo.imageUrl,
+                  description: photo.description,
+                  isPublic: photo.isPublic
+                }
+              })}
             >
               <View style={styles.photoCard}>
                 <Image
@@ -444,12 +453,25 @@ const ProfileScreen = () => {
             <TouchableOpacity 
               key={photo.id} 
               style={styles.photoItem}
-              onPress={() => navigation.navigate('PhotoDetail', { photo: {
-                _id: photo.id,
-                imageUrl: photo.imageUrl,
-                description: photo.description,
-                isPublic: photo.isPublic
-              }})}
+              onPress={() => navigation.navigate('PhotoDetail', { 
+                photoId: photo.id,
+                photo: {
+                  _id: photo.id,
+                  imageUrl: photo.imageUrl,
+                  description: photo.description || "",
+                  isPublic: photo.isPublic || false,
+                  // Add these required properties
+                  user: {
+                    _id: profile?.id || "",
+                    name: profile?.name || "",
+                    email: profile?.username?.substring(1) || "" // Remove @ from username
+                  },
+                  likes: 0,
+                  keywords: [],
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
+              })}
             >
               <View style={styles.photoCard}>
                 <Image
