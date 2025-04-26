@@ -206,7 +206,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       setError(null);
       
       // Get user token from AsyncStorage
-      const userToken = await AsyncStorage.getItem('token');
+      const userToken = await AsyncStorage.getItem('accessToken');
       
       if (!userToken) {
         throw new Error('Bạn cần đăng nhập để sử dụng tính năng chat');
@@ -332,7 +332,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       }
       
       // Get user token from AsyncStorage
-      const userToken = await AsyncStorage.getItem('token');
+      const userToken = await AsyncStorage.getItem('accessToken');
       
       if (!userToken) {
         throw new Error('Bạn cần đăng nhập để xem tin nhắn');

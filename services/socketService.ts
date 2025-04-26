@@ -40,15 +40,15 @@ class SocketService {
         return;
       }
       
-      const userToken = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('accessToken');
       
-      if (!userToken) {
+      if (!token) {
         throw new Error('Auth token is required for socket connection');
       }
       
       // Khởi tạo kết nối socket với authentication theo tài liệu
       this.socket = io(API_URL, {
-        auth: { token: userToken }, // Sử dụng auth object theo tài liệu
+        auth: { token }, // Sử dụng auth object theo tài liệu
         transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: 5,
@@ -251,4 +251,4 @@ class SocketService {
 // Tạo và export instance singleton
 const socketService = new SocketService();
 
-export default socketService;                     
+export default socketService;
