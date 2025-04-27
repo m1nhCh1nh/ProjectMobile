@@ -57,9 +57,9 @@ const PhotoDetailScreen: SharedElementScreenComponent<PhotoDetailScreenProps> = 
   // Normalized photo ID for API calls
   const photoId = photo._id ?? (photo as any).id;
 
-  useEffect(() => {
-    console.log('User ID:', photo.user._id);
-  }, [photo.user._id]);
+  // useEffect(() => {
+  //   console.log('User ID:', photo.user._id);
+  // }, [photo.user._id]);
 
   // State for original image dimensions
   const [imgSize, setImgSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -161,7 +161,7 @@ const PhotoDetailScreen: SharedElementScreenComponent<PhotoDetailScreenProps> = 
         
         <ScrollView bounces={false}>
           <View style={styles.imageContainer}>
-            <TouchableOpacity onPress={() => Alert.alert('User ID', currentPhoto.user._id)} activeOpacity={0.8}>
+            <TouchableOpacity onPress={() => Alert.alert('User Name', currentPhoto.user.name)} activeOpacity={0.8}>
               <SharedElement id={`photo.${photo._id}.image`}>
                 <Image
                   source={{ uri: currentPhoto.imageUrl }}

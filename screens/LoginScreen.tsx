@@ -19,18 +19,20 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
         email: formData.email,
         password: formData.password,
       });
-      console.log("Response: ", response);
-      if(response.status == 403) {
-        alert('Login failed. Please try again');
-        return;
-      }
+      
       const token = response.data.accessToken;
-      console.log("Token: ", token);
-      if(token==undefined)
-        console.log("Token is undefined");
+      
+      // Lưu token với cả hai key để đảm bảo tương thích với mọi nơi trong ứng dụng
       await AsyncStorage.setItem('accessToken', token);
-      await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-
+      await AsyncStorage.setItem('token', token); // Thêm dòng này
+      
+      // Lưu user với token đi kèm để đề phòng
+      const userData = {
+        ...response.data.user,
+        token: token // Thêm token vào userData
+      };
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      
       Alert.alert(
         'Success',
         'Login successful!',

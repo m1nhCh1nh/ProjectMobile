@@ -27,6 +27,7 @@ type RootStackParamList = {
     chatId?: string;
     user?: { name: string; email: string; _id?: string; id?: string }
   };
+  Login: {}; // Add the Login screen to the type definition
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
@@ -36,44 +37,89 @@ const UserProfileScreen: React.FC<Props> = ({ route, navigation }) => {
   const [loading, setLoading] = useState(false);
 
   const handleChatPress = async () => {
-    // Log user information to make sure we have the data
-    console.log('Thông tin người dùng nhận được:', JSON.stringify(user));
-    console.log('Thuộc tính của user:', Object.keys(user));
-    
-    // Check if we have a valid email and ID
-    if (!user.email || user.email.trim() === '') {
-      Alert.alert('Lỗi', 'Không thể chat với người dùng này. Email không hợp lệ.');
-      return;
-    }
-    
-    // Get user ID either from _id or id field
-    const userId = user._id || user.id;
-    
-    // Thêm dòng code in ra userId
-    console.log('User ID được sử dụng:', userId);
-
     try {
       setLoading(true);
       
-      // Get user token from AsyncStorage
-      const userToken = await AsyncStorage.getItem('token');
+      // Thêm key 'accessToken' vào danh sách kiểm tra
+      let userToken = await AsyncStorage.getItem('accessToken');
+      console.log("Token từ accessToken:", userToken ? "Tìm thấy" : "Không tìm thấy");
+      
+      // Kiểm tra các key khác nếu cần
+      if (!userToken) {
+        userToken = await AsyncStorage.getItem('token');
+        console.log("Token từ token:", userToken ? "Tìm thấy" : "Không tìm thấy");
+      }
       
       if (!userToken) {
-        Alert.alert('Lỗi', 'Bạn cần đăng nhập để sử dụng tính năng chat');
+        userToken = await AsyncStorage.getItem('userToken');
+        console.log("Token từ userToken:", userToken ? "Tìm thấy" : "Không tìm thấy");
+      }
+      
+      // Kiểm tra từ user object trong storage
+      if (!userToken) {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          try {
+            const parsedUserData = JSON.parse(userData);
+            console.log("Dữ liệu user:", parsedUserData);
+            
+            // Kiểm tra token trong user object
+            if (parsedUserData.accessToken) {
+              userToken = parsedUserData.accessToken;
+              console.log("Tìm thấy token trong user.accessToken");
+            } else if (parsedUserData.token) {
+              userToken = parsedUserData.token;
+              console.log("Tìm thấy token trong user.token");
+            }
+          } catch (e) {
+            console.error("Lỗi khi parse user data:", e);
+          }
+        }
+      }
+      
+      // Nếu vẫn không tìm được token
+      if (!userToken) {
+        console.log("Tất cả các phương thức lấy token đều thất bại");
+        // Hiển thị cửa sổ đăng nhập...
+        Alert.alert(
+          'Lỗi xác thực',
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.',
+          [
+            {
+              text: 'Đăng nhập',
+              onPress: () => {
+                // Điều hướng người dùng về màn hình đăng nhập
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }]
+                });
+              }
+            }
+          ]
+        );
         setLoading(false);
         return;
       }
       
+      // Kiểm tra token có giá trị hợp lệ
+      if (typeof userToken !== 'string' || userToken.trim() === '') {
+        throw new Error('Token không hợp lệ');
+      }
+      
+      // Tiếp tục xử lý với token hợp lệ
+      // Lấy user ID từ _id hoặc id
+      const userId = user._id || user.id;
+      console.log('User ID được sử dụng:', userId);
+      
       let chatData;
       
-      // Nếu có userId, sử dụng nó để tạo chat
+      // Tạo cuộc trò chuyện với userId
       if (userId) {
         console.log('Tạo cuộc trò chuyện với userId:', userId);
         
-        // Gọi API để tạo chat với userId
         const response = await axios.post(
           `${API_URL}/v1/chats`,
-          { participants: [user._id] },
+          { participants: [userId] },
           {
             headers: {
               'Content-Type': 'application/json',
@@ -84,63 +130,24 @@ const UserProfileScreen: React.FC<Props> = ({ route, navigation }) => {
         
         chatData = response.data;
         console.log('Tạo cuộc trò chuyện thành công:', chatData);
-      } 
-      // Nếu không có userId, tìm user dựa trên email
-      else {
-        console.log('Tìm kiếm người dùng với email:', user.email);
-        
-        // Gọi API để tìm kiếm người dùng theo email
-        const userResponse = await axios.get(
-          `${API_URL}/v1/users`,
-          {
-            headers: {
-              'Authorization': `Bearer ${userToken}`
-            },
-            params: {
-              email: user.email
-            }
-          }
-        );
-        
-        // Tìm người dùng với email trùng khớp
-        let foundUser = null;
-        
-        if (Array.isArray(userResponse.data)) {
-          foundUser = userResponse.data.find(u => u.email === user.email);
-        } else if (userResponse.data && userResponse.data.email === user.email) {
-          foundUser = userResponse.data;
-        }
-        
-        if (!foundUser) {
-          throw new Error('Không tìm thấy người dùng với email này');
-        }
-        
-        const foundUserId = foundUser._id;
-        console.log('Tìm thấy người dùng với ID:', foundUserId);
-        
-        // Tạo cuộc trò chuyện với userId đã tìm thấy
-        const chatResponse = await axios.post(
-          `${API_URL}/v1/chats`,
-          { participants: [foundUserId] },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${userToken}`
-            }
-          }
-        );
-        
-        chatData = chatResponse.data;
-        console.log('Tạo cuộc trò chuyện thành công:', chatData);
+      } else {
+        throw new Error('Không tìm thấy userId hợp lệ');
       }
       
-      // Điều hướng đến màn hình Chat với thông tin cần thiết
-      navigation.navigate('Chat', { 
-        user,
-        chatId: chatData._id,
+      // Thêm log trước khi chuyển hướng để debug
+      console.log('Chuẩn bị chuyển đến Chat screen với dữ liệu:', {
+        chatId: chatData._id || chatData.id,
         recipient: user.name,
         email: user.email,
-        userId: userId || chatData.participants.find((p: string | undefined) => p !== user._id)?._id
+        userId: userId
+      });
+      
+      // Chuyển hướng đến màn hình Chat với đầy đủ tham số
+      navigation.navigate('Chat', {
+        chatId: chatData._id || chatData.id,
+        recipient: user.name,
+        email: user.email, 
+        userId: userId
       });
       
     } catch (error) {
@@ -148,8 +155,36 @@ const UserProfileScreen: React.FC<Props> = ({ route, navigation }) => {
       
       let errorMessage = 'Không thể tạo cuộc trò chuyện. Vui lòng thử lại sau.';
       
-      if (axios.isAxiosError(error) && error.response) {
-        errorMessage = `Lỗi (${error.response.status}): ${error.response.data?.message || 'Vui lòng thử lại sau'}`;
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          // Token hết hạn hoặc không hợp lệ
+          errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+          
+          // Xóa token không hợp lệ
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('userToken');
+          
+          // Thêm nút đăng nhập lại
+          Alert.alert(
+            'Lỗi xác thực',
+            errorMessage,
+            [
+              {
+                text: 'Đăng nhập',
+                onPress: () => {
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Login' }]
+                  });
+                }
+              }
+            ]
+          );
+          setLoading(false);
+          return;
+        } else if (error.response) {
+          errorMessage = `Lỗi (${error.response.status}): ${error.response.data?.message || 'Vui lòng thử lại sau'}`;
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }

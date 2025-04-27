@@ -198,6 +198,42 @@ const UploadScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  // Thêm hàm xử lý hủy upload
+  const handleCancel = () => {
+    // Hiển thị hộp thoại xác nhận nếu đã nhập thông tin
+    if (image || description || keywords) {
+      Alert.alert(
+        "Hủy Upload",
+        "Bạn có chắc muốn hủy? Thông tin đã nhập sẽ bị mất.",
+        [
+          {
+            text: "Tiếp tục chỉnh sửa",
+            style: "cancel"
+          },
+          {
+            text: "Hủy Upload",
+            style: "destructive",
+            onPress: () => {
+              // Reset tất cả các state
+              setImage(null);
+              setDescription('');
+              setKeywords('');
+              setUploadProgress(0);
+              setIsPublic(true);
+              
+              // Quay về màn hình trước đó
+              navigation.goBack();
+            }
+          }
+        ]
+      );
+    } else {
+      // Nếu chưa nhập thông tin gì thì không cần xác nhận
+      navigation.goBack();
+    }
+  };
+
+  // Thay đổi header để thêm nút Cancel
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar
@@ -207,7 +243,16 @@ const UploadScreen = ({ navigation }: { navigation: any }) => {
       />
 
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.cancelButton}
+          onPress={handleCancel}
+          disabled={isLoading}
+        >
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        
         <Text style={styles.headerTitle}>Upload Photo</Text>
+        
         <TouchableOpacity 
           style={[styles.uploadButton, (!image || !description || isLoading) && styles.disabledButton]}
           onPress={handleUpload}
@@ -397,6 +442,16 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
     paddingHorizontal: 4,
+  },
+  cancelButton: {
+    backgroundColor: '#f44336',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontWeight: '500',
   },
 });
 

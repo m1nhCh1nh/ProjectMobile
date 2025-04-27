@@ -69,9 +69,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Thư viện ảnh</Text>
-      </View>
 
       {error ? (
         <View style={styles.errorContainer}>
