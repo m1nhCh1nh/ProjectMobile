@@ -69,7 +69,7 @@ const SignupScreen: React.FC = ({ navigation }: any) => {
           Alert.alert('Error', error.response?.data?.message || 'Registration failed');
         }
       }
-      console.error('Signup error:', error);
+      //console.error('Signup error:', error);
     } finally {
       setIsLoading(false);
     }

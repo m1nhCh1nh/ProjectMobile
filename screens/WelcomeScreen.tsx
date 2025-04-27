@@ -27,13 +27,13 @@ const WelcomeScreen = () => {
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.appName}>Photo App</Text>
+        <Text style={styles.appName}>FlickShare</Text>
       </View>
       
       <View style={styles.contentContainer}>
-        <Text style={styles.welcomeText}>Chào mừng đến với Photo App</Text>
+        <Text style={styles.welcomeText}>Welcome to FlickShare</Text>
         <Text style={styles.descriptionText}>
-          Chia sẻ khoảnh khắc của bạn với bạn bè và khám phá những bức ảnh tuyệt vời từ khắp nơi trên thế giới
+        Share your moments with friends and discover amazing photos from around the world
         </Text>
       </View>
       
@@ -41,7 +41,7 @@ const WelcomeScreen = () => {
         style={styles.button} 
         onPress={handleGetStarted}
       >
-        <Text style={styles.buttonText}>Bắt đầu</Text>
+        <Text style={styles.buttonText}>Get Start</Text>
       </TouchableOpacity>
     </View>
   );

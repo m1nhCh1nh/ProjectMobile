@@ -52,7 +52,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
       } else {
         Alert.alert('Error', 'An error occurred. Please try again.');
       }
-      console.error(error);
+      //console.error(error);
     }
   };
 
@@ -63,7 +63,7 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
         <View style={styles.logoContainer}>
           <Image source={require('../assets/images/logo.png')} style={styles.logo} />
         </View>
-        <Text style={styles.title}>Photo Gallery</Text>
+        <Text style={styles.title}>FlickShare</Text>
 
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
@@ -93,9 +93,12 @@ const LoginScreen: React.FC = ({ navigation }: any) => {
             <Text style={styles.loginButtonText}>Login</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+
+          <View style={styles.forgotPasswordContainer}>
+            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.signupContainer}>
@@ -188,6 +191,10 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: '#2196F3',
     fontSize: 14,
+  },
+  forgotPasswordContainer: {
+    alignItems: 'center',
+    marginTop: 15,
   },
   signupContainer: {
     flexDirection: 'row',

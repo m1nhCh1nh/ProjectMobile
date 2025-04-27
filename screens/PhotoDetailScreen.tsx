@@ -18,6 +18,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/config';
 import axios from 'axios';
+import { SharedElement } from 'react-navigation-shared-element';
 
 // Định nghĩa kiểu Photo khớp với API
 interface Photo {
@@ -46,7 +47,12 @@ type RootStackParamList = {
 // Định nghĩa kiểu props cho PhotoDetailScreen
 type PhotoDetailScreenProps = NativeStackScreenProps<RootStackParamList, 'PhotoDetail'>;
 
-const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ route, navigation }) => {
+// Extend component type to include sharedElements
+type SharedElementScreenComponent<P> = React.FC<P> & {
+  sharedElements?: (route: any) => string[];
+};
+
+const PhotoDetailScreen: SharedElementScreenComponent<PhotoDetailScreenProps> = ({ route, navigation }) => {
   const { photo } = route.params;
   // Normalized photo ID for API calls
   const photoId = photo._id ?? (photo as any).id;
@@ -156,15 +162,17 @@ const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ route, navigation
         <ScrollView bounces={false}>
           <View style={styles.imageContainer}>
             <TouchableOpacity onPress={() => Alert.alert('User ID', currentPhoto.user._id)} activeOpacity={0.8}>
-              <Image
-                source={{ uri: currentPhoto.imageUrl }}
-                style={
-                  imgSize.width > 0 && imgSize.height > 0
-                    ? { width: screenWidth, height: (screenWidth * imgSize.height) / imgSize.width }
-                    : { width: screenWidth, height: screenWidth * 0.75 }
-                }
-                resizeMode="contain"
-              />
+              <SharedElement id={`photo.${photo._id}.image`}>
+                <Image
+                  source={{ uri: currentPhoto.imageUrl }}
+                  style={
+                    imgSize.width > 0 && imgSize.height > 0
+                      ? { width: screenWidth, height: (screenWidth * imgSize.height) / imgSize.width }
+                      : { width: screenWidth, height: screenWidth * 0.75 }
+                  }
+                  resizeMode="contain"
+                />
+              </SharedElement>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -226,6 +234,11 @@ const PhotoDetailScreen: React.FC<PhotoDetailScreenProps> = ({ route, navigation
       </SafeAreaView>
     )
   );
+};
+
+PhotoDetailScreen.sharedElements = (route) => {
+  const { photo } = route.params;
+  return [`photo.${photo._id}.image`];
 };
 
 const styles = StyleSheet.create({
