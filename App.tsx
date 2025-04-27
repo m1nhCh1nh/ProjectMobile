@@ -14,6 +14,8 @@ import ChatScreen from './screens/ChatScreen';
 import UserProfileScreen from './screens/UserProfileScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import ChatListScreen from './screens/ChatListScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 
 // Định nghĩa kiểu Photo cho PhotoDetail
 interface Photo {
@@ -50,6 +52,8 @@ export type RootStackParamList = {
   Profile: undefined;
   UserProfile: { user: { name: string; email: string; _id?: string; id?: string } };
   ChatList: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: undefined;
 };
 
 // Define props type for PhotoDetailScreen
@@ -67,6 +71,8 @@ export default function App() {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         <Stack.Screen name="Main" component={BottomTabs} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="PhotoDetail" component={PhotoDetailScreen as React.ComponentType}/>

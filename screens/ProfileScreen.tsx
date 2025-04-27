@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, SafeAreaView, StatusBar, Platform, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, SafeAreaView, StatusBar, Platform, Alert, ActivityIndicator, RefreshControl, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/apiService';
 import axios from 'axios';
@@ -16,9 +16,35 @@ const ProfileScreen = () => {
   const [postsCount, setPostsCount] = useState(0);
   const [photos, setPhotos] = useState<Array<{ id: string; imageUrl: string; description?: string; isPublic?: boolean }>>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('grid'); // 'grid', 'bookmark', or 'heart'
   const [likedPhotos, setLikedPhotos] = useState<Array<{ id: string; imageUrl: string; description?: string; isPublic?: boolean }>>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Thêm các state mới để quản lý animation
+  const [activeTab, setActiveTab] = useState('grid');
+  const fadeAnim = useState(new Animated.Value(1))[0];
+  const slideAnim = useState(new Animated.Value(0))[0];
+  
+  // Hàm xử lý chuyển tab với animation
+  const handleTabChange = (newTab: 'grid' | 'bookmark' | 'heart') => {
+    // Fade out
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true
+    }).start(() => {
+      setActiveTab(newTab);
+      
+      // Reset slide position cho tab mới
+      slideAnim.setValue(newTab === 'grid' ? 0 : newTab === 'bookmark' ? 1 : 2);
+      
+      // Fade in
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true
+      }).start();
+    });
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -387,28 +413,45 @@ const ProfileScreen = () => {
         <View style={styles.tabContainer}>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'grid' && styles.activeTab]}
-            onPress={() => setActiveTab('grid')}
+            onPress={() => handleTabChange('grid')}
           >
             <Ionicons name="grid-outline" size={22} color={activeTab === 'grid' ? "#2196F3" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'bookmark' && styles.activeTab]}
-            onPress={() => setActiveTab('bookmark')}
+            onPress={() => handleTabChange('bookmark')}
           >
             <Ionicons name="bookmark-outline" size={22} color={activeTab === 'bookmark' ? "#2196F3" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'heart' && styles.activeTab]}
             onPress={() => {
-              setActiveTab('heart');
+              handleTabChange('heart');
               fetchLikedPhotos(); // Fetch liked photos when tab is selected
             }}
           >
             <Ionicons name="heart-outline" size={22} color={activeTab === 'heart' ? "#2196F3" : "#999"} />
           </TouchableOpacity>
+          
+          {/* Animated indicator */}
+          <Animated.View
+            style={[
+              styles.tabIndicator,
+              {
+                transform: [
+                  {
+                    translateX: slideAnim.interpolate({
+                      inputRange: [0, 1, 2],
+                      outputRange: ['0%', '100%', '200%']
+                    })
+                  }
+                ]
+              }
+            ]}
+          />
         </View>
 
-        <View style={styles.photosGrid}>
+        <Animated.View style={[styles.photosGrid, { opacity: fadeAnim }]}>
           {activeTab === 'grid' && photos.map((photo) => (
             <TouchableOpacity 
               key={photo.id} 
@@ -417,10 +460,20 @@ const ProfileScreen = () => {
               onPress={() => navigation.navigate('PhotoDetail', { 
                 photoId: photo.id,
                 photo: {
-                  _id: photo.id,  // Change from id to _id
+                  _id: photo.id,
                   imageUrl: photo.imageUrl,
-                  description: photo.description,
-                  isPublic: photo.isPublic
+                  description: photo.description || "",
+                  isPublic: photo.isPublic || false,
+                  // Thêm các thuộc tính cần thiết như ở Heart Tab
+                  user: {
+                    _id: profile?.id || "",
+                    name: profile?.name || "",
+                    email: profile?.username?.substring(1) || "" // Loại bỏ @ từ username
+                  },
+                  likes: 0,
+                  keywords: [],
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
                 }
               })}
             >
@@ -431,8 +484,6 @@ const ProfileScreen = () => {
                   resizeMode="cover"
                 />
                 <View style={styles.photoInfo}>
-                  <Text style={styles.photoDescription}>{photo.description}</Text>
-                  
                   {/* Toggle visibility badge */}
                   <TouchableOpacity onPress={() => toggleVisibility(photo.id)}>
                     <View style={[
@@ -480,7 +531,7 @@ const ProfileScreen = () => {
                   resizeMode="cover"
                 />
                 <View style={styles.photoInfo}>
-                  <Text style={styles.photoDescription}>{photo.description}</Text>
+                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoDescription}>{photo.description}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -492,7 +543,7 @@ const ProfileScreen = () => {
               <Text style={styles.emptyStateText}>No bookmarked photos yet</Text>
             </View>
           )}
-        </View>
+        </Animated.View>
       </ScrollView>
       )}
     </SafeAreaView>
@@ -611,6 +662,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: '#eee',
+    position: 'relative', // For absolute positioning of the indicator
   },
   tab: {
     flex: 1,
@@ -621,32 +673,54 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: '#2196F3',
   },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '33.33%', // Width of each tab (3 tabs)
+    height: 2,
+    backgroundColor: '#2196F3',
+  },
   photosGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    padding: 0, // Bỏ padding cho container
   },
   photoItem: {
     width: '33.33%',
     aspectRatio: 1,
-    padding: 1,
+    padding: 2, // Giảm padding xuống còn 2
+    marginBottom: 4, // Giảm margin
   },
   photoCard: {
     flex: 1,
+    borderRadius: 0, // Bỏ bo tròn để tận dụng tối đa không gian
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0,  // Bỏ shadow để tránh việc lấy thêm không gian
+    shadowRadius: 0,
+    elevation: 1, // Giảm elevation
   },
   photoImage: {
     width: '100%',
-    height: '100%',
+    height: '82%', // Tăng chiều cao ảnh
     backgroundColor: '#f1f1f1',
   },
   photoInfo: {
-    padding: 8,
+    padding: 2, // Giảm padding
+    height: '18%',
+    justifyContent: 'center',
   },
   photoDescription: {
-    fontSize: 14,
+    fontSize: 12, // Giảm kích thước chữ xuống
     color: '#333',
+    marginBottom: 2,
   },
   visibilityBadge: {
-    marginTop: 4,
+    alignSelf: 'flex-start', // Căn lề bên trái
+    marginTop: 2,
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 4,
@@ -658,8 +732,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F44336',
   },
   visibilityText: {
-    fontSize: 12,
+    fontSize: 10, // Giảm kích thước chữ xuống
     color: '#fff',
+    fontWeight: '500',
   },
   emptyStateContainer: {
     flex: 1,
