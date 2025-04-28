@@ -23,7 +23,7 @@ import socketService from '../services/socketService';
 type Message = {
   _id: string;
   text: string;
-  sender: string;
+  sender: string | { _id?: string; id?: string; };
   chat: string;
   createdAt: string;
   readBy: string[];
@@ -186,16 +186,87 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
     socketService.onError(() => {});
   };
 
-  // Lấy ID người dùng hiện tại
+  // Cải thiện hàm fetchCurrentUserId để lấy đúng ID người dùng hiện tại
   const fetchCurrentUserId = async () => {
     try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
-        const parsedData = JSON.parse(userData);
-        setCurrentUserId(parsedData._id);
+      // Bước 1: Thử lấy trực tiếp từ AsyncStorage
+      const userJson = await AsyncStorage.getItem('user');
+      
+      if (userJson) {
+        try {
+          const userData = JSON.parse(userJson);
+          console.log('User data from AsyncStorage:', userData);
+          
+          // Kiểm tra cả hai trường ID phổ biến
+          if (userData._id || userData.id) {
+            const userId = userData._id || userData.id;
+            console.log('Found user ID:', userId);
+            setCurrentUserId(String(userId));
+            return;
+          }
+        } catch (err) {
+          console.warn('Error parsing user data:', err);
+        }
       }
-    } catch (err: unknown) {
-      console.error('Error fetching current user ID:', err);
+      
+      // Bước 2: Thử các key khác
+      const possibleUserKeys = ['userData', 'userInfo', 'currentUser'];
+      
+      for (const key of possibleUserKeys) {
+        const storedData = await AsyncStorage.getItem(key);
+        if (storedData) {
+          try {
+            const parsedData = JSON.parse(storedData);
+            if (parsedData._id || parsedData.id) {
+              const userId = parsedData._id || parsedData.id;
+              console.log(`Found user ID in ${key}:`, userId);
+              setCurrentUserId(String(userId));
+              return;
+            }
+          } catch (e) {
+            console.warn(`Error parsing ${key}:`, e);
+          }
+        }
+      }
+      
+      // Bước 3: Thử lấy từ token
+      const accessToken = await AsyncStorage.getItem('accessToken');
+      if (accessToken) {
+        // Check if we can extract ID from token
+        try {
+          const decoded = decodeJWT(accessToken);
+          console.log('Decoded token:', decoded);
+          if (decoded && (decoded.id || decoded._id || decoded.sub)) {
+            const tokenUserId = decoded.id || decoded._id || decoded.sub;
+            console.log('User ID from token:', tokenUserId);
+            setCurrentUserId(String(tokenUserId));
+            return;
+          }
+        } catch (e) {
+          console.warn('Error decoding token:', e);
+        }
+      }
+      
+      console.error('Could not find user ID in AsyncStorage');
+    } catch (err) {
+      console.error('Error in fetchCurrentUserId:', err);
+    }
+  };
+
+  // Helper function to decode JWT
+  const decodeJWT = (token: string) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      console.error('Error decoding JWT:', e);
+      return null;
     }
   };
 
@@ -225,11 +296,11 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
         return;
       }
       
-      // If we have userId, use it directly
+      
       if (userId && userId.trim() !== '') {
         console.log('Creating chat with userId:', userId);
         
-        // Create chat with userId
+        
         const res = await fetch(`${API_URL}/v1/chats`, {
           method: 'POST',
           headers: {
@@ -243,7 +314,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
         const chatData = await res.json();
         setChat(chatData);
         
-        // Load messages for this chat
+        
         fetchMessages(chatData._id);
       } 
       // Otherwise use email to find the user first
@@ -251,8 +322,8 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
         console.log('Finding user with email:', email);
         
         try {
-          // Thử tìm kiếm người dùng với email trực tiếp từ API thông qua query param
-          // Theo API document không có endpoint /users/search mà chỉ có /users
+          
+          
           const resUser = await fetch(`${API_URL}/v1/users?email=${encodeURIComponent(email)}`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${userToken}` }
@@ -436,29 +507,73 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
 
   // Render a message item
   const renderMessage = ({ item }: { item: Message }) => {
-    // Xác định tin nhắn là của người dùng hiện tại hay của người khác
-    const isMine = item.sender === currentUserId;
+    // Kiểm tra trước khi render để tránh lỗi
+    if (!currentUserId) {
+      console.warn('currentUserId not set yet - assuming message is not mine');
+    }
+    
+    // Log chi tiết để debug
+    console.log('Message data:', {
+      text: item.text.substring(0, 15) + '...',
+      sender: typeof item.sender === 'object' ? 
+        JSON.stringify(item.sender) : item.sender,
+      currentUserId
+    });
+    
+    // Chuẩn hóa để so sánh
+    let senderId = '';
+    
+    // Xử lý trường hợp khi item.sender là object
+    if (typeof item.sender === 'object' && item.sender !== null) {
+      senderId = String(item.sender._id || item.sender.id || '');
+    } else {
+      // Trường hợp item.sender là string hoặc primitive
+      senderId = String(item.sender || '');
+    }
+    
+    // Chuẩn hóa currentUserId
+    const normalizedCurrentUserId = String(currentUserId || '');
+    
+    // So sánh và log kết quả
+    const isMine = senderId.trim() === normalizedCurrentUserId.trim();
+    console.log(`Is message mine? ${isMine ? 'YES' : 'NO'} (${senderId} vs ${normalizedCurrentUserId})`);
     
     return (
-      <View style={[styles.messageContainer]}>
-        <View style={[styles.messageBubble, isMine ? styles.myBubble : styles.theirBubble]}>
-          <Text style={[styles.messageText, isMine ? styles.myMessageText : styles.theirMessageText]}>
+      <View style={styles.messageRow}>
+        {isMine ? <View style={styles.spacer} /> : null}
+        
+        <View style={[
+          styles.messageBubble, 
+          isMine ? styles.myBubble : styles.theirBubble
+        ]}>
+          <Text style={[
+            styles.messageText, 
+            isMine ? styles.myMessageText : styles.theirMessageText
+          ]}>
             {item.text}
           </Text>
-          <Text style={[styles.messageTime, isMine ? styles.myMessageTime : styles.theirMessageTime]}>
-            {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          <Text style={[
+            styles.messageTime, 
+            isMine ? styles.myMessageTime : styles.theirMessageTime
+          ]}>
+            {new Date(item.createdAt).toLocaleTimeString([], { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
           </Text>
         </View>
+        
+        {!isMine ? <View style={styles.spacer} /> : null}
       </View>
     );
   };
 
-  // Render empty state
+  // Cập nhật hàm renderEmptyChat để chống lại hiệu ứng inverted của FlatList
   const renderEmptyChat = () => {
     if (loading) return null;
     
     return (
-      <View style={styles.emptyContainer}>
+      <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>
         <Ionicons name="chatbubble-ellipses-outline" size={64} color="#ccc" />
         <Text style={styles.emptyText}>Chưa có tin nhắn nào</Text>
         <Text style={styles.emptySubtext}>Hãy bắt đầu cuộc trò chuyện với {recipient}</Text>
@@ -649,7 +764,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   messageBubble: {
-    maxWidth: '75%',
+    maxWidth: '70%', // Thu nhỏ lại một chút
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 20,
@@ -663,6 +778,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     backgroundColor: '#DCF8C6',
     borderBottomRightRadius: 0,
+    marginLeft: '25%', // Tạo khoảng cách bên trái để tin nhắn hiển thị bên phải
   },
   theirBubble: {
     alignSelf: 'flex-start',
@@ -670,6 +786,17 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderWidth: 1,
     borderColor: '#eee',
+    marginRight: '25%', // Tạo khoảng cách bên phải để tin nhắn hiển thị bên trái
+  },
+  myMessageContainer: {
+    alignItems: 'flex-end',
+    alignSelf: 'flex-end',
+    width: '100%',
+  },
+  theirMessageContainer: {
+    alignItems: 'flex-start',
+    alignSelf: 'flex-start',
+    width: '100%',
   },
   messageText: {
     fontSize: 16,
@@ -774,6 +901,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginLeft: 8,
+  },
+  messageRow: {
+    flexDirection: 'row',
+    marginVertical: 6,
+    paddingHorizontal: 8,
+  },
+  spacer: {
+    flex: 1,
   },
 });
 
