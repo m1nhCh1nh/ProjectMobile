@@ -19,6 +19,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/config';
 import axios from 'axios';
 import { SharedElement } from 'react-navigation-shared-element';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
+import * as Permissions from 'expo-permissions';
 
 // Định nghĩa kiểu Photo khớp với API
 interface Photo {
@@ -152,6 +155,54 @@ const PhotoDetailScreen: SharedElementScreenComponent<PhotoDetailScreenProps> = 
 
   const isOwner = currentPhoto.user._id === photo.user._id;
 
+  // Thêm state để theo dõi trạng thái tải xuống
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Cập nhật hàm handleDownloadImage
+  const handleDownloadImage = async () => {
+    try {
+      // Yêu cầu quyền truy cập thư viện ảnh
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Ứng dụng cần quyền truy cập để lưu ảnh');
+        return;
+      }
+
+      // Bắt đầu tải - hiển thị indicator thay vì Alert
+      setIsDownloading(true);
+
+      // Tạo tên file với thời gian hiện tại để tránh trùng lặp
+      const fileName = `photo-${Date.now()}.jpg`;
+      
+      // Tải ảnh về bộ nhớ tạm
+      const fileUri = FileSystem.documentDirectory + fileName;
+      const downloadResult = await FileSystem.downloadAsync(
+        currentPhoto.imageUrl,
+        fileUri
+      );
+
+      // Ẩn trạng thái downloading trước khi hiển thị kết quả
+      setIsDownloading(false);
+
+      if (downloadResult.status === 200) {
+        // Lưu ảnh vào thư viện
+        const asset = await MediaLibrary.createAssetAsync(fileUri);
+        await MediaLibrary.createAlbumAsync("PhotoApp", asset, false);
+        
+        // Thông báo thành công
+        Alert.alert('Success', 'Ảnh đã được lưu vào thư viện!');
+      } else {
+        // Thông báo lỗi khi tải
+        Alert.alert('Download Failed', 'Không thể tải ảnh, vui lòng thử lại sau');
+      }
+    } catch (error) {
+      setIsDownloading(false);
+      console.error('Download error:', error);
+      Alert.alert('Error', 'Đã xảy ra lỗi khi tải ảnh');
+    }
+  };
+
   return (
     loadingDetail ? (
       <ActivityIndicator style={styles.container} />
@@ -213,6 +264,25 @@ const PhotoDetailScreen: SharedElementScreenComponent<PhotoDetailScreenProps> = 
               <TouchableOpacity style={styles.statItem} onPress={handleLike}>
                 <Ionicons name="heart-outline" size={22} color="#ff3b30" />
                 <Text style={styles.statText}>{likes}</Text>
+              </TouchableOpacity>
+              
+              {/* Add download button */}
+              <TouchableOpacity 
+                style={styles.statItem} 
+                onPress={handleDownloadImage}
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <>
+                    <ActivityIndicator size="small" color="#007AFF" />
+                    <Text style={styles.statText}>Đang tải...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="download-outline" size={22} color="#007AFF" />
+                    <Text style={styles.statText}>Tải xuống</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -340,6 +410,30 @@ const styles = StyleSheet.create({
   visibilityButtonText: {
     color: '#fff',
     fontSize: 16,
+  },
+  downloadContainer: {
+    marginTop: 24,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2196F3',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 
