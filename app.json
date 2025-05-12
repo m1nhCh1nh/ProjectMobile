@@ -2,18 +2,20 @@
   "expo": {
     "name": "FlickShare",
     "slug": "photo-app",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
+    "sdkVersion": "52.0.0",
     "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.photoapp"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.yourcompany.photoapp",
@@ -23,9 +25,7 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.CAMERA"
       ],
-      "config": {
-        "usesCleartextTraffic": true
-      }
+      "config": {}
     },
     "web": {
       "bundler": "metro",
@@ -58,8 +58,12 @@
         "origin": false
       },
       "eas": {
-        "projectId": "4614ad3d-44ee-4e6f-bcb4-41ba7953902e"
+        "projectId": "5252946b-eb11-4ed7-bfba-9840f1ff0bbe"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/5252946b-eb11-4ed7-bfba-9840f1ff0bbe"
     }
   }
 }
