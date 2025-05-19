@@ -1,5 +1,5 @@
 // screens/UserProfileScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Thêm useEffect
 import {
   View,
   Text,
@@ -10,7 +10,10 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert
+  Alert,
+  FlatList,     // Thêm FlatList để hiển thị grid ảnh
+  Dimensions,   // Thêm Dimensions để tính toán kích thước
+  ScrollView    // Thêm ScrollView
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +38,107 @@ type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 const UserProfileScreen: React.FC<Props> = ({ route, navigation }) => {
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
+  
+  // Thêm state để lưu trữ ảnh và loading state cho ảnh
+  const [photos, setPhotos] = useState<Array<{ id: string; imageUrl: string; description?: string }>>([]);
+  const [photosLoading, setPhotosLoading] = useState(true);
+  
+  // Sửa đổi hàm fetchUserPublicPhotos
+  const fetchUserPublicPhotos = async () => {
+    try {
+      setPhotosLoading(true);
+      
+      // Lấy access token
+      const token = await AsyncStorage.getItem('accessToken');
+      if (!token) {
+        throw new Error('Không tìm thấy token xác thực');
+      }
+      
+      // Lấy user ID
+      const userId = user._id || user.id;
+      if (!userId) {
+        throw new Error('Không tìm thấy ID người dùng');
+      }
+      
+      console.log('Fetching photos for user ID:', userId);
+      
+      // Cách dùng endpoint chính xác cho user khác
+      try {
+        const response = await axios.get(`${API_URL}/v1/photos/user/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          params: {
+            isPublic: true  // Chỉ lấy ảnh công khai
+          }
+        });
+        
+        console.log('API response:', response.data);
+        
+        if (response.data && response.data.photos && Array.isArray(response.data.photos)) {
+          const transformedPhotos = response.data.photos.map((photo: any) => ({
+            id: photo._id || photo.id,
+            imageUrl: photo.imageUrl,
+            description: photo.description
+          }));
+          
+          // ĐÂY LÀ PHẦN QUAN TRỌNG: Đặt state photos
+          setPhotos(transformedPhotos);
+          return; // Thoát nếu API thứ nhất thành công
+        }
+      } catch (specificApiError) {
+        console.log('Specific endpoint failed, trying alternative:', specificApiError);
+      }
+      
+      // Cách dùng endpoint từ ProfileScreen (điều chỉnh cho user khác)
+      const response = await axios.get(`${API_URL}/v1/photos`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          // Thử nhiều tham số khác nhau vì có thể backend chấp nhận các tên khác nhau
+          userId: userId,
+          ownerId: userId,
+          authorId: userId,
+          // Quan trọng: chỉ lấy ảnh công khai
+          isPublic: true
+        }
+      });
+      
+      if (response.data && response.data.photos && Array.isArray(response.data.photos)) {
+        // Lọc thêm ở phía client để đảm bảo chỉ lấy ảnh của người dùng đang xem
+        const filteredPhotos = response.data.photos.filter(
+          (photo: any) => (photo.user?._id === userId || photo.user?.id === userId || photo.userId === userId || photo.ownerId === userId)
+        );
+        
+        const transformedPhotos = filteredPhotos.map((photo: any) => ({
+          id: photo._id || photo.id,
+          imageUrl: photo.imageUrl,
+          description: photo.description
+        }));
+        
+        setPhotos(transformedPhotos);
+      } else {
+        setPhotos([]); // Đặt mảng rỗng nếu không có dữ liệu
+      }
+    } catch (error) {
+      console.error('Lỗi khi lấy ảnh người dùng:', error);
+      setPhotos([]);
+    } finally {
+      setPhotosLoading(false);
+    }
+  };
+  
+  // Gọi fetch ảnh khi component mount
+  useEffect(() => {
+    fetchUserPublicPhotos();
+  }, [user]);
+  
+  // Tính toán kích thước thumbnail cho grid
+  const { width } = Dimensions.get('window');
+  const imageSize = (width - 48) / 3; // 3 ảnh mỗi hàng, padding 16px ở mỗi bên và gap 8px
 
   const handleChatPress = async () => {
     try {
@@ -196,8 +300,10 @@ const UserProfileScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   };
 
+  // Thay đổi phần return, thêm grid ảnh vào cuối View content
   return (
     <SafeAreaView style={styles.container}>
+      {/* Giữ nguyên StatusBar và header */}
       <StatusBar
         translucent
         backgroundColor="transparent"
@@ -213,40 +319,74 @@ const UserProfileScreen: React.FC<Props> = ({ route, navigation }) => {
         <Text style={styles.headerTitle}>Thông tin người dùng</Text>
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.content}>
+          {/* Giữ nguyên phần profile header */}
+          <View style={styles.profileHeader}>
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+            </View>
+            
+            <View style={styles.profileInfo}>
+              <Text style={styles.label}>Tên</Text>
+              <Text style={styles.value}>{user.name}</Text>
+
+              <Text style={styles.label}>Email</Text>
+              <Text style={styles.value}>{user.email}</Text>
+            </View>
           </View>
           
-          <View style={styles.profileInfo}>
-            <Text style={styles.label}>Tên</Text>
-            <Text style={styles.value}>{user.name}</Text>
-
-            <Text style={styles.label}>Email</Text>
-            <Text style={styles.value}>{user.email}</Text>
+          {/* Giữ nguyên nút chat */}
+          <TouchableOpacity 
+            style={styles.chatButton}
+            onPress={handleChatPress}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+                <Text style={styles.chatButtonText}>Nhắn tin</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          {/* Thêm phần hiển thị ảnh của người dùng */}
+          <View style={styles.photosSection}>
+            <Text style={styles.sectionTitle}>Ảnh công khai</Text>
+            
+            {photosLoading ? (
+              <ActivityIndicator size="large" color="#2196F3" />
+            ) : photos.length > 0 ? (
+              <FlatList
+                data={photos}
+                keyExtractor={item => item.id}
+                numColumns={3}
+                scrollEnabled={false} // Thêm dòng này để tắt scroll riêng của FlatList
+                renderItem={({ item }) => (
+                  <TouchableOpacity 
+                    style={[styles.photoItem, { width: imageSize, height: imageSize }]}
+                  >
+                    <Image 
+                      source={{ uri: item.imageUrl }} 
+                      style={styles.photoImage}
+                    />
+                  </TouchableOpacity>
+                )}
+                contentContainerStyle={styles.photoGrid}
+              />
+            ) : (
+              <Text style={styles.noPhotosText}>Người dùng này chưa có ảnh công khai nào</Text>
+            )}
           </View>
         </View>
-        
-        <TouchableOpacity 
-          style={styles.chatButton}
-          onPress={handleChatPress}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="chatbubble-outline" size={20} color="#fff" />
-              <Text style={styles.chatButtonText}>Nhắn tin</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
+// Thêm styles mới cho phần hiển thị ảnh
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -319,6 +459,39 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  photosSection: {
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  photoGrid: {
+    gap: 8,
+  },
+  photoItem: {
+    margin: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  noPhotosText: {
+    textAlign: 'center',
+    color: '#666',
+    padding: 16,
   },
 });
 
