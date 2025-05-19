@@ -4,11 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/apiService';
 import axios from 'axios';
 import { API_URL } from '../constants/config';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 const ProfileScreen = () => {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   
   const [profile, setProfile] = useState<{ name: string; username: string; id: string } | null>(null);
   const [followers, setFollowers] = useState(0);
@@ -145,9 +145,11 @@ const ProfileScreen = () => {
   };
 
   // Add this function after fetchPhotos
+  const [likedPhotosLoading, setLikedPhotosLoading] = useState(false);
+
   const fetchLikedPhotos = async () => {
     try {
-      setIsLoading(true);
+      setLikedPhotosLoading(true); // Use a separate loading state
       
       const token = await AsyncStorage.getItem('accessToken');
       if (!token) {
@@ -200,9 +202,16 @@ const ProfileScreen = () => {
       Alert.alert('Error', 'Could not load your liked photos');
       setLikedPhotos([]);
     } finally {
-      setIsLoading(false);
+      setLikedPhotosLoading(false); // Update separate loading state
     }
   };
+
+  // Add this useEffect to handle fetching liked photos when the tab changes
+  useEffect(() => {
+    if (activeTab === 'heart') {
+      fetchLikedPhotos();
+    }
+  }, [activeTab]);
 
   // Navigation already declared at the top
 
@@ -425,10 +434,7 @@ const ProfileScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'heart' && styles.activeTab]}
-            onPress={() => {
-              handleTabChange('heart');
-              fetchLikedPhotos(); // Fetch liked photos when tab is selected
-            }}
+            onPress={() => handleTabChange('heart')}
           >
             <Ionicons name="heart-outline" size={22} color={activeTab === 'heart' ? "#2196F3" : "#999"} />
           </TouchableOpacity>
@@ -500,42 +506,51 @@ const ProfileScreen = () => {
             </TouchableOpacity>
           ))}
           
-          {activeTab === 'heart' && likedPhotos.map((photo) => (
-            <TouchableOpacity 
-              key={photo.id} 
-              style={styles.photoItem}
-              onPress={() => navigation.navigate('PhotoDetail', { 
-                photoId: photo.id,
-                photo: {
-                  _id: photo.id,
-                  imageUrl: photo.imageUrl,
-                  description: photo.description || "",
-                  isPublic: photo.isPublic || false,
-                  // Add these required properties
-                  user: {
-                    _id: profile?.id || "",
-                    name: profile?.name || "",
-                    email: profile?.username?.substring(1) || "" // Remove @ from username
-                  },
-                  likes: 0,
-                  keywords: [],
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                }
-              })}
-            >
-              <View style={styles.photoCard}>
-                <Image
-                  source={{ uri: photo.imageUrl }}
-                  style={styles.photoImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.photoInfo}>
-                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoDescription}>{photo.description}</Text>
-                </View>
+          {activeTab === 'heart' && (
+            likedPhotosLoading ? (
+              <View style={styles.emptyStateContainer}>
+                <ActivityIndicator size="large" color="#2196F3" />
+                <Text style={styles.loadingText}>Loading liked photos...</Text>
               </View>
-            </TouchableOpacity>
-          ))}
+            ) : (
+              likedPhotos.map((photo) => (
+                <TouchableOpacity 
+                  key={photo.id} 
+                  style={styles.photoItem}
+                  onPress={() => navigation.navigate('PhotoDetail', { 
+                    photoId: photo.id,
+                    photo: {
+                      _id: photo.id,
+                      imageUrl: photo.imageUrl,
+                      description: photo.description || "",
+                      isPublic: photo.isPublic || false,
+                      // Add these required properties
+                      user: {
+                        _id: profile?.id || "",
+                        name: profile?.name || "",
+                        email: profile?.username?.substring(1) || "" // Remove @ from username
+                      },
+                      likes: 0,
+                      keywords: [],
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString()
+                    }
+                  })}
+                >
+                  <View style={styles.photoCard}>
+                    <Image
+                      source={{ uri: photo.imageUrl }}
+                      style={styles.photoImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.photoInfo}>
+                      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.photoDescription}>{photo.description}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )
+          )}
           
           {activeTab === 'bookmark' && (
             <View style={styles.emptyStateContainer}>
