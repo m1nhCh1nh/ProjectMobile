@@ -105,17 +105,50 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   
   const flatListRef = useRef<FlatList>(null);
 
-  // Initialize chat conversation
-  useEffect(() => {
-    fetchCurrentUserId();
-    
-    // Nếu đã có chatId, sử dụng nó, ngược lại tạo chat mới
-    if (existingChatId) {
-      setChat({ _id: existingChatId } as Chat);
-      fetchMessages(existingChatId);
-    } else {
-      createOrGetChat();
+  // Thêm state để lưu thông tin người dùng hiện tại
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Thêm state để lưu thông tin người dùng còn lại
+  const [otherUser, setOtherUser] = useState<User | null>(null);
+  
+  // Cập nhật hàm fetchCurrentUserInfo để đảm bảo cũng lấy và thiết lập currentUserId
+  const fetchCurrentUserInfo = async () => {
+    try {
+      console.log('-------- FETCHING CURRENT USER INFO --------');
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        const userData = JSON.parse(userJson);
+        setCurrentUser(userData);
+        // Cập nhật currentUserId từ đây luôn để đảm bảo nó được thiết lập sớm
+        const userId = userData._id || userData.id;
+        if (userId) {
+          console.log('⭐️ CURRENT USER ID from fetchCurrentUserInfo:', userId);
+          setCurrentUserId(String(userId));
+        }
+        console.log('Current user info loaded:', userData);
+      } else {
+        console.warn('⚠️ No user data found in AsyncStorage');
+      }
+    } catch (err) {
+      console.error('Error fetching current user info:', err);
     }
+  };
+  
+  // Initialize chat conversation - thêm route.params vào dependency để cập nhật khi navigation thay đổi
+  useEffect(() => {
+    // Fetch current user TRƯỚC khi thiết lập other user để tránh xung đột
+    fetchCurrentUserInfo().then(() => {
+      // Sau khi đã có thông tin current user, mới thiết lập other user
+      setupOtherUserInfo();
+      
+      // Sau đó mới tạo/lấy chat
+      if (existingChatId) {
+        setChat({ _id: existingChatId } as Chat);
+        fetchMessages(existingChatId);
+      } else {
+        createOrGetChat();
+      }
+    });
     
     // Connect to socket
     setupSocketListeners();
@@ -133,7 +166,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       // Remove socket listeners
       removeSocketListeners();
     };
-  }, []);
+  }, [route.params]); // Thêm phụ thuộc vào route.params
 
   // Connect to socket khi chat được khởi tạo
   useEffect(() => {
@@ -149,12 +182,33 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   }, [chat?._id]);
 
-  // Thiết lập socket listeners
+  // Thêm useEffect để theo dõi sự thay đổi của currentUserId
+  useEffect(() => {
+    console.log('currentUserId CHANGED:', currentUserId);
+    
+    // Nếu ID đã thay đổi và có tin nhắn, cập nhật lại messages để render lại giao diện
+    if (currentUserId && messages.length > 0) {
+      // Tạo mảng mới để trigger re-render
+      setMessages([...messages]);
+    }
+    
+    // Nếu socket đã kết nối, cập nhật ID người dùng
+    if (socketService.isConnected() && chat?._id) {
+      socketService.leaveChat(chat._id);
+      socketService.joinChat(chat._id);
+    }
+  }, [currentUserId]);
+
+  // Thiết lập socket listeners - Cải thiện bằng cách sử dụng closure
   const setupSocketListeners = () => {
-    // Lắng nghe tin nhắn mới
+    // Lắng nghe tin nhắn mới với userId mới nhất
     socketService.onMessage((newMessage) => {
       console.log('New message received:', newMessage);
-      setMessages(prevMessages => [newMessage, ...prevMessages]);
+      
+      // Cập nhật lại currentUserId để đảm bảo dùng giá trị mới nhất
+      fetchCurrentUserId().then(() => {
+        setMessages(prevMessages => [newMessage, ...prevMessages]);
+      });
     });
     
     // Lắng nghe sự kiện typing
@@ -189,67 +243,54 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
   // Cải thiện hàm fetchCurrentUserId để lấy đúng ID người dùng hiện tại
   const fetchCurrentUserId = async () => {
     try {
-      // Bước 1: Thử lấy trực tiếp từ AsyncStorage
+      console.log('-------- FETCHING CURRENT USER ID --------');
+      
+      // Xóa toàn bộ cache trong bộ nhớ để đọc dữ liệu mới nhất
+      await AsyncStorage.getAllKeys().then(keys => {
+        console.log('All AsyncStorage keys:', keys);
+      });
+      
+      // Lấy dữ liệu mới từ AsyncStorage
       const userJson = await AsyncStorage.getItem('user');
+      console.log('Raw user JSON:', userJson);
       
       if (userJson) {
         try {
           const userData = JSON.parse(userJson);
           console.log('User data from AsyncStorage:', userData);
           
-          // Kiểm tra cả hai trường ID phổ biến
-          if (userData._id || userData.id) {
-            const userId = userData._id || userData.id;
-            console.log('Found user ID:', userId);
+          // Nếu tìm thấy bất kỳ loại ID nào
+          const userId = userData._id || userData.id;
+          if (userId) {
+            console.log('⭐️ FOUND USER ID:', userId);
             setCurrentUserId(String(userId));
-            return;
+            return userId;
+          } else {
+            console.error('❌ NO USER ID IN USER DATA:', userData);
           }
         } catch (err) {
           console.warn('Error parsing user data:', err);
         }
       }
       
-      // Bước 2: Thử các key khác
-      const possibleUserKeys = ['userData', 'userInfo', 'currentUser'];
-      
-      for (const key of possibleUserKeys) {
-        const storedData = await AsyncStorage.getItem(key);
-        if (storedData) {
-          try {
-            const parsedData = JSON.parse(storedData);
-            if (parsedData._id || parsedData.id) {
-              const userId = parsedData._id || parsedData.id;
-              console.log(`Found user ID in ${key}:`, userId);
-              setCurrentUserId(String(userId));
-              return;
-            }
-          } catch (e) {
-            console.warn(`Error parsing ${key}:`, e);
-          }
+      // Thử lấy từ token nếu không tìm thấy từ user
+      const token = await AsyncStorage.getItem('accessToken');
+      if (token) {
+        const decodedToken = decodeJWT(token);
+        if (decodedToken && (decodedToken.id || decodedToken._id || decodedToken.userId)) {
+          const tokenId = decodedToken.id || decodedToken._id || decodedToken.userId;
+          console.log('⭐️ FOUND TOKEN ID:', tokenId);
+          setCurrentUserId(String(tokenId));
+          return tokenId;
         }
       }
       
-      // Bước 3: Thử lấy từ token
-      const accessToken = await AsyncStorage.getItem('accessToken');
-      if (accessToken) {
-        // Check if we can extract ID from token
-        try {
-          const decoded = decodeJWT(accessToken);
-          console.log('Decoded token:', decoded);
-          if (decoded && (decoded.id || decoded._id || decoded.sub)) {
-            const tokenUserId = decoded.id || decoded._id || decoded.sub;
-            console.log('User ID from token:', tokenUserId);
-            setCurrentUserId(String(tokenUserId));
-            return;
-          }
-        } catch (e) {
-          console.warn('Error decoding token:', e);
-        }
-      }
-      
-      console.error('Could not find user ID in AsyncStorage');
+      // Nếu vẫn không tìm thấy, log lỗi
+      console.error('❌ FAILED TO FIND USER ID');
+      return null;
     } catch (err) {
       console.error('Error in fetchCurrentUserId:', err);
+      return null;
     }
   };
 
@@ -505,43 +546,93 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   };
 
+  // Tách hàm thiết lập other user để rõ ràng hơn
+  const setupOtherUserInfo = () => {
+    if (route.params.user) {
+      const user = route.params.user;
+      setOtherUser(user);
+      console.log('💬 OTHER USER INFO:', {
+        name: user.name,
+        email: user.email,
+        id: user._id || user.id
+      });
+    } else {
+      // Trường hợp nhận từng field riêng
+      const otherUserInfo = {
+        name: recipient,
+        email: email,
+        _id: userId
+      };
+      setOtherUser(otherUserInfo);
+      console.log('💬 OTHER USER INFO:', otherUserInfo);
+    }
+    
+    // Kiểm tra xem có trùng ID không
+    if (currentUserId && currentUserId === userId) {
+      console.error('❌ ERROR: Current user ID và Other user ID đang giống nhau!', {
+        currentUserId,
+        otherUserId: userId
+      });
+    }
+  };
+
   // Render a message item
   const renderMessage = ({ item }: { item: Message }) => {
-    // Kiểm tra trước khi render để tránh lỗi
-    if (!currentUserId) {
-      console.warn('currentUserId not set yet - assuming message is not mine');
-    }
-    
-    // Log chi tiết để debug
-    console.log('Message data:', {
-      text: item.text.substring(0, 15) + '...',
-      sender: typeof item.sender === 'object' ? 
-        JSON.stringify(item.sender) : item.sender,
-      currentUserId
-    });
-    
-    // Chuẩn hóa để so sánh
+    // Trích xuất senderId theo cách chống lỗi
     let senderId = '';
     
-    // Xử lý trường hợp khi item.sender là object
     if (typeof item.sender === 'object' && item.sender !== null) {
+      // Trường hợp sender là object
       senderId = String(item.sender._id || item.sender.id || '');
+    } else if (typeof item.sender === 'string') {
+      // Trường hợp sender là string
+      senderId = item.sender;
     } else {
-      // Trường hợp item.sender là string hoặc primitive
-      senderId = String(item.sender || '');
+      console.warn(`Unknown sender type: ${typeof item.sender}`);
     }
     
-    // Chuẩn hóa currentUserId
+    // Dùng strict comparison với String
     const normalizedCurrentUserId = String(currentUserId || '');
+    const currentUserRealId = String(currentUser?.id || currentUser?._id || '');
+    const otherUserRealId = String(otherUser?._id || otherUser?.id || '');
     
-    // So sánh và log kết quả
-    const isMine = senderId.trim() === normalizedCurrentUserId.trim();
-    console.log(`Is message mine? ${isMine ? 'YES' : 'NO'} (${senderId} vs ${normalizedCurrentUserId})`);
+    // So sánh senderId với ID của current user và other user
+    const isMine = senderId === normalizedCurrentUserId || senderId === currentUserRealId;
+    const isOtherUser = senderId === otherUserRealId;
     
+    // Log để debug
+    console.log(`COMPARING:
+      - Message sender ID: ${senderId}
+      - Current user ID: ${normalizedCurrentUserId || currentUserRealId}
+      - Other user ID: ${otherUserRealId}
+      - IS MINE: ${isMine}
+      - IS OTHER: ${isOtherUser}
+    `);
+    
+    // ⚠️ FIX QUAN TRỌNG: Xác định tên người gửi dựa trên ID thực tế
+    let senderName = "Unknown";
+    
+    if (isMine) {
+      senderName = currentUser?.name || "Me";
+    } else if (isOtherUser) {
+      senderName = otherUser?.name || recipient;
+    } else {
+      // Trường hợp không khớp ID nào, có thể là người dùng khác trong nhóm chat
+      senderName = "Unknown User";
+    }
+    
+    console.log(`MESSAGE "${item.text.substring(0, 15)}${item.text.length > 15 ? '...' : ''}" 
+      - FROM: ${senderName} 
+      - IS MINE: ${isMine}
+    `);
+    
+    // Phần render bubble message vẫn giữ nguyên
     return (
       <View style={styles.messageRow}>
+        {/* Spacer bên trái cho tin nhắn của mình */}
         {isMine ? <View style={styles.spacer} /> : null}
         
+        {/* Bong bóng tin nhắn với style phù hợp */}
         <View style={[
           styles.messageBubble, 
           isMine ? styles.myBubble : styles.theirBubble
@@ -563,6 +654,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
           </Text>
         </View>
         
+        {/* Spacer bên phải cho tin nhắn của người khác */}
         {!isMine ? <View style={styles.spacer} /> : null}
       </View>
     );
@@ -592,6 +684,30 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       </View>
     );
   };
+
+  // Thêm hàm kiểm tra ID
+  useEffect(() => {
+    const checkIds = async () => {
+      const userJson = await AsyncStorage.getItem('user');
+      if (userJson) {
+        const userData = JSON.parse(userJson);
+        const currentId = userData._id || userData.id;
+        
+        console.log('📱 IDENTITY CHECK:');
+        console.log(`   - STORED USER ID: ${currentId}`);
+        console.log(`   - ROUTE USER ID: ${userId}`);
+        console.log(`   - ARE DIFFERENT: ${currentId !== userId}`);
+        
+        // Nếu có vấn đề, bắt buộc cập nhật currentUserId
+        if (currentId && currentId !== userId) {
+          console.log('🔄 Updating currentUserId to correct value');
+          setCurrentUserId(String(currentId));
+        }
+      }
+    };
+    
+    checkIds();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -633,7 +749,7 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
         <>
           <FlatList
             ref={flatListRef}
-            extraData={currentUserId}
+            extraData={[currentUserId, currentUser?.id, currentUser?._id]} // Thêm tất cả các ID có thể
             data={messages}
             renderItem={renderMessage}
             keyExtractor={(item) => item._id}
@@ -689,6 +805,18 @@ const ChatScreen: React.FC<Props> = ({ route, navigation }) => {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+};
+
+// Trong hàm đăng xuất (thường nằm ở màn hình Profile hoặc Settings)
+const logout = async (navigation: any) => {
+  // Xóa toàn bộ dữ liệu người dùng
+  await AsyncStorage.multiRemove(['accessToken', 'user', 'refreshToken']);
+  
+  // Xóa ID đã lưu trong socketService nếu có
+  socketService.disconnect();
+  
+  // Điều hướng về màn hình đăng nhập
+  navigation.navigate('Login');
 };
 
 const styles = StyleSheet.create({
