@@ -21,7 +21,7 @@ import axios from 'axios';
 import { SharedElement } from 'react-navigation-shared-element';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import * as Permissions from 'expo-permissions';
+import * as Sharing from 'expo-sharing'; // Thay thế import từ react-native-share
 
 // Định nghĩa kiểu Photo khớp với API
 interface Photo {
@@ -203,6 +203,51 @@ const PhotoDetailScreen: SharedElementScreenComponent<PhotoDetailScreenProps> = 
     }
   };
 
+  // Thêm state để theo dõi trạng thái chia sẻ
+  const [isSharing, setIsSharing] = useState(false);
+
+  // Cập nhật hàm handleShare
+  const handleShare = async () => {
+    try {
+      setIsSharing(true);
+      
+      // Kiểm tra có thể chia sẻ không
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Không hỗ trợ', 'Chia sẻ không được hỗ trợ trên thiết bị này');
+        return;
+      }
+      
+      // Tải ảnh xuống local để chia sẻ
+      const fileName = `flick-share-${Date.now()}.jpg`;
+      const fileUri = FileSystem.documentDirectory + fileName;
+      
+      const downloadResult = await FileSystem.downloadAsync(
+        currentPhoto.imageUrl,
+        fileUri
+      );
+      
+      if (downloadResult.status !== 200) {
+        Alert.alert('Lỗi', 'Không thể tải ảnh để chia sẻ');
+        return;
+      }
+      
+      // Hiển thị UI chia sẻ hệ thống
+      await Sharing.shareAsync(fileUri, {
+        dialogTitle: currentPhoto.description || 'Ảnh từ FlickShare',
+        mimeType: 'image/jpeg',
+        UTI: 'public.jpeg'
+      });
+      
+      console.log('Đã chia sẻ thành công');
+    } catch (error) {
+      console.error('Lỗi khi chia sẻ:', error);
+      Alert.alert('Lỗi', 'Không thể chia sẻ ảnh. Vui lòng thử lại sau.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     loadingDetail ? (
       <ActivityIndicator style={styles.container} />
@@ -281,6 +326,25 @@ const PhotoDetailScreen: SharedElementScreenComponent<PhotoDetailScreenProps> = 
                   <>
                     <Ionicons name="download-outline" size={22} color="#007AFF" />
                     <Text style={styles.statText}>Tải xuống</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              
+              {/* Add share button */}
+              <TouchableOpacity 
+                style={styles.statItem} 
+                onPress={handleShare}
+                disabled={isSharing}
+              >
+                {isSharing ? (
+                  <>
+                    <ActivityIndicator size="small" color="#4CD964" />
+                    <Text style={styles.statText}>Đang chia sẻ...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="share-social-outline" size={22} color="#4CD964" />
+                    <Text style={styles.statText}>Chia sẻ</Text>
                   </>
                 )}
               </TouchableOpacity>
