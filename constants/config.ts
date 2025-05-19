@@ -1,2 +1,2 @@
 // constants/config.ts
-export const API_URL = 'http://3.89.220.201:3000';
+export const API_URL = 'http://192.168.101.237:3000';
